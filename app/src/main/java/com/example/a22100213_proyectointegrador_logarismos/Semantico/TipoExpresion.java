@@ -1,0 +1,21 @@
+package com.example.a22100213_proyectointegrador_logarismos.Semantico;
+
+public enum TipoExpresion {
+    T1_CONSTANTE,
+    T2_VARIABLE,
+    T3_EXPRESION_ALGEBRAICA,
+    T4_ECUACION,
+    T5_FRACCION_ALGEBRAICA,
+    T6_RADICAL,
+    T7_TRIGONOMETRICA,
+    T8_EXPONENCIAL_LOG,
+    T9_CALCULO,
+    ST_INTEGRAL_DEFINIDA,
+    ST_INTEGRAL_INDEFINIDA,
+    ST_POLINOMICA,
+    ST_TRIGONOMETRICA,
+    ST_EXPONENCIAL_LOG,
+    ST_RACIONAL,
+    ST_RADICAL,
+    ST_SIMPLE
+}

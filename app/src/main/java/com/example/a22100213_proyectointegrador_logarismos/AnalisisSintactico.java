@@ -46,12 +46,6 @@ public class AnalisisSintactico {
         NodoAST nodo = parseTermino();
         while (lookahead().type == LexToken.Type.SUM || lookahead().type == LexToken.Type.SUB) {
             LexToken op = consume();
-            if (lookahead().type == LexToken.Type.SUM || lookahead().type == LexToken.Type.SUB ||
-                    lookahead().type == LexToken.Type.MUL || lookahead().type == LexToken.Type.DIV ||
-                    lookahead().type == LexToken.Type.EXP || lookahead().type == LexToken.Type.EQUAL ||
-                    lookahead().type == LexToken.Type.FACTORIAL) {
-                throw new RuntimeException("Error de sintaxis: operador binario duplicado o inválido en expresión.");
-            }
             NodoAST derecho = parseTermino();
             NodoAST padre = new NodoAST(op);
             padre.addHijo(nodo);
@@ -65,12 +59,6 @@ public class AnalisisSintactico {
         NodoAST nodo = parseFactor();
         while (lookahead().type == LexToken.Type.MUL || lookahead().type == LexToken.Type.DIV) {
             LexToken op = consume();
-            if (lookahead().type == LexToken.Type.SUM || lookahead().type == LexToken.Type.SUB ||
-                    lookahead().type == LexToken.Type.MUL || lookahead().type == LexToken.Type.DIV ||
-                    lookahead().type == LexToken.Type.EXP || lookahead().type == LexToken.Type.EQUAL ||
-                    lookahead().type == LexToken.Type.FACTORIAL) {
-                throw new RuntimeException("Error de sintaxis: operador binario duplicado o inválido en término.");
-            }
             NodoAST derecho = parseFactor();
             NodoAST padre = new NodoAST(op);
             padre.addHijo(nodo);
@@ -84,15 +72,6 @@ public class AnalisisSintactico {
         NodoAST nodo = parsePotencia();
         while (lookahead().type == LexToken.Type.FACTORIAL) {
             LexToken op = consume();
-            if (!(nodo.token.type == LexToken.Type.INTEGER ||
-                    nodo.token.type == LexToken.Type.DECIMAL ||
-                    nodo.token.type == LexToken.Type.VARIABLE ||
-                    nodo.token.type == LexToken.Type.CONST_PI ||
-                    nodo.token.type == LexToken.Type.CONST_E ||
-                    nodo.token.type == LexToken.Type.IMAGINARY ||
-                    nodo.token.type == LexToken.Type.PAREN_CLOSE)) {
-                throw new RuntimeException("Error de sintaxis: factorial aplicado a elemento inválido.");
-            }
             NodoAST padre = new NodoAST(op);
             padre.addHijo(nodo);
             nodo = padre;
@@ -102,26 +81,32 @@ public class AnalisisSintactico {
 
     private NodoAST parsePotencia() {
         NodoAST base = parsePrimario();
-
-        while (lookahead().type == LexToken.Type.EXP) {
+        if (lookahead().type == LexToken.Type.EXP) {
             LexToken op = consume();
-
-            if (lookahead().type == LexToken.Type.EOF || lookahead().type == LexToken.Type.PAREN_CLOSE) {
+            if (lookahead().type == LexToken.Type.EOF || lookahead().type == LexToken.Type.PAREN_CLOSE || lookahead().type == LexToken.Type.ABS_CLOSE) {
                 throw new RuntimeException("Falta exponente después de ^");
             }
-            NodoAST exponente = parsePrimario();
+            NodoAST exponente = parsePotencia();
             NodoAST padre = new NodoAST(op);
             padre.addHijo(base);
             padre.addHijo(exponente);
-            base = padre;
+            return padre;
         }
-
         return base;
     }
 
-
     private NodoAST parsePrimario() {
         LexToken tok = lookahead();
+        if (tok.type == LexToken.Type.SUB || tok.type == LexToken.Type.SUM) {
+            LexToken op = consume();
+            NodoAST rhs = parsePrimario();
+            LexToken zero = new LexToken(LexToken.Type.INTEGER, "0", 1);
+            NodoAST lhs = new NodoAST(zero);
+            NodoAST padre = new NodoAST(op);
+            padre.addHijo(lhs);
+            padre.addHijo(rhs);
+            return padre;
+        }
         switch (tok.type) {
             case INTEGER:
             case DECIMAL:
@@ -130,7 +115,6 @@ public class AnalisisSintactico {
             case CONST_PI:
             case CONST_E:
                 return new NodoAST(consume());
-
             case PAREN_OPEN:
                 consume();
                 NodoAST dentro = parseExpresion();
@@ -139,7 +123,16 @@ public class AnalisisSintactico {
                 }
                 consume();
                 return dentro;
-
+            case ABS_OPEN:
+                consume();
+                NodoAST absArg = parseExpresion();
+                if (lookahead().type != LexToken.Type.ABS_CLOSE) {
+                    throw new RuntimeException("Falta cerrar valor absoluto.");
+                }
+                consume();
+                NodoAST abs = new NodoAST(new LexToken(LexToken.Type.ABS, "| |", 8));
+                abs.addHijo(absArg);
+                return abs;
             case RADICAL:
                 consume();
                 if (lookahead().type == LexToken.Type.EOF) {
@@ -149,7 +142,6 @@ public class AnalisisSintactico {
                 NodoAST raiz = new NodoAST(tok);
                 raiz.addHijo(radicando);
                 return raiz;
-
             case TRIG_SIN:
             case TRIG_COS:
             case TRIG_TAN:
@@ -167,11 +159,9 @@ public class AnalisisSintactico {
             case LOG_BASE2:
             case LOG_BASE10:
                 return parseFuncion();
-
             case INTEGRAL_DEF:
             case INTEGRAL_INDEF:
                 return parseIntegral();
-
             default:
                 throw new RuntimeException("Token inesperado: " + tok);
         }
@@ -210,10 +200,11 @@ public class AnalisisSintactico {
             if (lookahead().type != LexToken.Type.DIFFERENTIAL) {
                 throw new RuntimeException("Integral definida sin diferencial.");
             }
-            nodo.addHijo(sup);
+            LexToken dx = consume();
             nodo.addHijo(inf);
+            nodo.addHijo(sup);
             nodo.addHijo(cuerpo);
-            nodo.addHijo(new NodoAST(consume()));
+            nodo.addHijo(new NodoAST(dx));
         } else {
             NodoAST cuerpo = parseExpresion();
             if (lookahead().type != LexToken.Type.DIFFERENTIAL) {
