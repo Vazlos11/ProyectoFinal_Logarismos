@@ -814,6 +814,15 @@ public class MainActivity extends AppCompatActivity {
             sb.append("\n=== ÁRBOL SINTÁCTICO ===\n");
             sb.append(prettyPrintAST(arbol, 0));
             ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
+            sb.append("\n=== SEMANTICO ===\n");
+            sb.append("Tipo Principal: ").append(formatTipo(rs.tipoPrincipal)).append("\n");
+            sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append(("\n"));
+            if(rs.errores.isEmpty()){
+                sb.append("Errores: Ninguno");
+            }
+            else{
+                sb.append("Errores: \n").append(formatErrores(rs.errores));
+            }
             test.setText(sb.toString());
         } catch (RuntimeException ex) {
             sb.append("\nERROR DE SINTAXIS:\n");
