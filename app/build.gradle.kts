@@ -13,7 +13,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -26,22 +25,38 @@ android {
             )
         }
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 
+    kotlinOptions { jvmTarget = "11" }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/INDEX.LIST"
+            )
+
+            pickFirsts += setOf("**/*.xsd")
+        }
+    }
 }
 
 dependencies {
-    implementation ("com.github.judemanutd:katexview:1.0.2")
+    implementation("org.matheclipse:matheclipse-core:3.0.0")
+    implementation("com.github.judemanutd:katexview:1.0.2")
+
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
