@@ -9,7 +9,6 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
-        jcenter()
     }
 }
 dependencyResolutionManagement {
@@ -18,9 +17,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
+    }
 }
-}
-
 rootProject.name = "22100213_proyectoIntegrador_Logarismos"
 include(":app")
- 
