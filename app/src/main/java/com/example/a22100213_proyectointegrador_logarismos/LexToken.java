@@ -15,6 +15,14 @@ public class LexToken {
         FACTORIAL,
         INTEGRAL_DEF, INTEGRAL_INDEF,
         DIFFERENTIAL, EQUAL,
+        // NUEVOS TOKENS
+        PERCENT,
+        DERIV,
+        PRIME,
+        SYSTEM_BEGIN,
+        SYSTEM_END,
+        ROW_SEP,
+        SYSTEM,
         EOF
     }
 

@@ -1,33 +1,28 @@
 package com.example.a22100213_proyectointegrador_logarismos.Semantico;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SemanticoError {
-    public enum Severidad { ADVERTENCIA, ERROR }
+    public enum Severidad { ERROR, ADVERTENCIA }
 
-    public final String codigo;
-    public final String mensaje;
-    public final Severidad severidad;
-    public final List<Integer> ruta;
+    public String codigo;
+    public String mensaje;
+    public Severidad severidad;
+    public List<Integer> ruta;
 
     public SemanticoError(String codigo, String mensaje, Severidad severidad, List<Integer> ruta) {
         this.codigo = codigo;
         this.mensaje = mensaje;
         this.severidad = severidad;
-        this.ruta = ruta;
+        this.ruta = (ruta == null) ? new ArrayList<>() : new ArrayList<>(ruta);
     }
 
     public static SemanticoError error(String codigo, String mensaje, List<Integer> ruta) {
         return new SemanticoError(codigo, mensaje, Severidad.ERROR, ruta);
     }
 
-    public static SemanticoError advertencia(String codigo, String mensaje, List<Integer> ruta) {
+    public static SemanticoError warn(String codigo, String mensaje, List<Integer> ruta) {
         return new SemanticoError(codigo, mensaje, Severidad.ADVERTENCIA, ruta);
-    }
-
-    @Override
-    public String toString() {
-        return severidad + " " + codigo + ": " + mensaje +
-                (ruta != null && !ruta.isEmpty() ? " @" + ruta.toString() : "");
     }
 }

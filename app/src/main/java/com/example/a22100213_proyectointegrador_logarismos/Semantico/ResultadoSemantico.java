@@ -7,7 +7,12 @@ import java.util.Set;
 
 public class ResultadoSemantico {
     public TipoExpresion tipoPrincipal;
-    public Set<TipoExpresion> subtipos = new LinkedHashSet<>();
-    public List<SemanticoError> errores = new ArrayList<>();
-    public List<SemanticoError> advertencias = new ArrayList<>();
+    public Set<TipoExpresion> subtipos;
+    public List<SemanticoError> errores;
+
+    public ResultadoSemantico() {
+        this.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
+        this.subtipos = new LinkedHashSet<>();
+        this.errores = new ArrayList<>();
+    }
 }
