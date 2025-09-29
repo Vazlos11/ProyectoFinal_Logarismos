@@ -1,24 +1,49 @@
 package com.example.a22100213_proyectointegrador_logarismos;
 
 public class LexToken {
-    public int prioridad;
+
     public enum Type {
-        INTEGER, DECIMAL, IMAGINARY,
+        INTEGER,
+        DECIMAL,
         VARIABLE,
-        SUM, SUB, MUL, DIV, EXP, RADICAL,
-        PAREN_OPEN, PAREN_CLOSE,
-        ABS_OPEN, ABS_CLOSE, ABS,
-        TRIG_SIN, TRIG_COS, TRIG_TAN, TRIG_COT, TRIG_SEC, TRIG_CSC,
-        TRIG_ARCSIN, TRIG_ARCCOS, TRIG_ARCTAN, TRIG_ARCCOT, TRIG_ARCSEC, TRIG_ARCCSC,
-        LOG, LN, LOG_BASE2, LOG_BASE10,
-        CONST_PI, CONST_E,
-        FACTORIAL,
-        INTEGRAL_DEF, INTEGRAL_INDEF,
-        DIFFERENTIAL, EQUAL,
-        // NUEVOS TOKENS
-        PERCENT,
+        CONST_E,
+        CONST_PI,
+        IMAGINARY,
+        SUM,
+        SUB,
+        MUL,
+        DIV,
+        EXP,
+        RADICAL,
+        EQUAL,
         DERIV,
         PRIME,
+        FACTORIAL,
+        PERCENT,
+        INTEGRAL_INDEF,
+        INTEGRAL_DEF,
+        DIFFERENTIAL,
+        TRIG_SIN,
+        TRIG_COS,
+        TRIG_TAN,
+        TRIG_SEC,
+        TRIG_CSC,
+        TRIG_COT,
+        TRIG_ARCSIN,
+        TRIG_ARCCOS,
+        TRIG_ARCTAN,
+        TRIG_ARCCOT,
+        TRIG_ARCSEC,
+        TRIG_ARCCSC,
+        LOG,
+        LN,
+        LOG_BASE10,
+        LOG_BASE2,
+        ABS_OPEN,
+        ABS_CLOSE,
+        ABS,
+        PAREN_OPEN,
+        PAREN_CLOSE,
         SYSTEM_BEGIN,
         SYSTEM_END,
         ROW_SEP,
@@ -28,6 +53,9 @@ public class LexToken {
 
     public Type type;
     public String value;
+    public int prioridad;
+    public int start;
+    public int end;
 
     public LexToken(Type type, String value, int prioridad) {
         this.type = type;
@@ -37,6 +65,7 @@ public class LexToken {
 
     @Override
     public String toString() {
-        return type + "(" + value + ", prec=" + prioridad + ")";
+        String v = value == null ? "" : value;
+        return type + "(" + v + "," + prioridad + ")";
     }
 }

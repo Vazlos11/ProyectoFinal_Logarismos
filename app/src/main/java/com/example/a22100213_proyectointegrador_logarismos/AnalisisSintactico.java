@@ -1,272 +1,195 @@
 package com.example.a22100213_proyectointegrador_logarismos;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class AnalisisSintactico {
     private final List<LexToken> tokens;
-    private int current = 0;
+    private int pos = 0;
 
     public AnalisisSintactico(List<LexToken> tokens) {
-        this.tokens = new ArrayList<>(tokens == null ? Collections.emptyList() : tokens);
-        if (this.tokens.isEmpty() || this.tokens.get(this.tokens.size() - 1).type != LexToken.Type.EOF) {
-            this.tokens.add(new LexToken(LexToken.Type.EOF, "", 0));
-        }
-        current = 0;
+        this.tokens = (tokens == null) ? new ArrayList<>() : tokens;
     }
 
     public NodoAST parse() {
-        NodoAST expr = parseExpression();
-        consume(LexToken.Type.EOF, "Se esperaba fin de entrada.");
-        return expr;
+        NodoAST root = parseExpr(0);
+        expect(LexToken.Type.EOF);
+        return root;
     }
 
-    private NodoAST parseExpression() { return parseEquality(); }
-
-    private NodoAST parseEquality() {
-        NodoAST left = parseAddSub();
-        if (match(LexToken.Type.EQUAL)) {
-            LexToken op = previous();
-            NodoAST right = parseAddSub();
-            NodoAST node = new NodoAST(op);
-            link(node, left);
-            link(node, right);
-            return node;
+    private NodoAST parseExpr(int minPrec) {
+        NodoAST left = parsePrefix();
+        left = parsePostfix(left);
+        while (true) {
+            LexToken op = peek();
+            if (!isBinary(op)) break;
+            int prec = op.prioridad;
+            if (prec < minPrec) break;
+            next();
+            boolean rightAssoc = (op.type == LexToken.Type.EXP);
+            int nextMinPrec = rightAssoc ? prec : prec + 1;
+            NodoAST right = parseExpr(nextMinPrec);
+            left = makeNode(op, left, right);
+            left = parsePostfix(left);
         }
         return left;
     }
 
-    private NodoAST parseAddSub() {
-        NodoAST left = parseMulDiv();
-        while (match(LexToken.Type.SUM, LexToken.Type.SUB)) {
-            LexToken op = previous();
-            NodoAST right = parseMulDiv();
-            NodoAST node = new NodoAST(op);
-            link(node, left);
-            link(node, right);
-            left = node;
-        }
-        return left;
-    }
-
-    private NodoAST parseMulDiv() {
-        NodoAST left = parsePower();
-        while (match(LexToken.Type.MUL, LexToken.Type.DIV)) {
-            LexToken op = previous();
-            NodoAST right = parsePower();
-            NodoAST node = new NodoAST(op);
-            link(node, left);
-            link(node, right);
-            left = node;
-        }
-        return left;
-    }
-
-    private NodoAST parsePower() {
-        NodoAST base = parseUnary();
-        base = parsePostfix(base);
-        if (match(LexToken.Type.EXP)) {
-            LexToken op = previous();
-            NodoAST exp = parsePower();
-            NodoAST node = new NodoAST(op);
-            link(node, base);
-            link(node, exp);
-            return node;
-        }
-        return base;
-    }
-
-    private NodoAST parseUnary() {
-        if (match(LexToken.Type.SUB)) {
-            LexToken op = previous();
+    private NodoAST parsePrefix() {
+        LexToken t = peek();
+        if (t.type == LexToken.Type.SUB) {
+            next();
+            NodoAST rhs = parsePrefix();
             NodoAST zero = new NodoAST(new LexToken(LexToken.Type.INTEGER, "0", 1));
-            NodoAST right = parseUnary();
-            NodoAST node = new NodoAST(op);
-            link(node, zero);
-            link(node, right);
-            return node;
+            return makeNode(new LexToken(LexToken.Type.SUB, "-", 5), zero, rhs);
         }
-        if (match(LexToken.Type.SUM)) return parseUnary();
-        return parsePrimary();
+        if (t.type == LexToken.Type.PAREN_OPEN) {
+            next();
+            NodoAST e = parseExpr(0);
+            expect(LexToken.Type.PAREN_CLOSE);
+            return e;
+        }
+        if (t.type == LexToken.Type.ABS_OPEN) {
+            next();
+            NodoAST e = parseExpr(0);
+            expect(LexToken.Type.ABS_CLOSE);
+            return makeNode(new LexToken(LexToken.Type.ABS, "|·|", 0), e);
+        }
+        if (isAtom(t)) {
+            next();
+            return new NodoAST(t);
+        }
+        if (isUnaryFunc(t.type)) {
+            next();
+            NodoAST arg = parseFuncArg();
+            return makeNode(t, arg);
+        }
+        if (t.type == LexToken.Type.LOG_BASE2 || t.type == LexToken.Type.LOG_BASE10) {
+            next();
+            NodoAST arg = parseFuncArg();
+            return makeNode(t, arg);
+        }
+        if (t.type == LexToken.Type.RADICAL) {
+            next();
+            NodoAST arg = parseFuncArg();
+            return makeNode(t, arg);
+        }
+        if (t.type == LexToken.Type.DERIV) {
+            next();
+            NodoAST arg = parsePrefix();
+            return makeNode(t, arg);
+        }
+        if (t.type == LexToken.Type.INTEGRAL_INDEF) {
+            next();
+            expect(LexToken.Type.PAREN_OPEN);
+            NodoAST body = parseExpr(0);
+            expect(LexToken.Type.PAREN_CLOSE);
+            NodoAST diff = (peek().type == LexToken.Type.DIFFERENTIAL)
+                    ? new NodoAST(next())
+                    : new NodoAST(new LexToken(LexToken.Type.DIFFERENTIAL, "dx", 3));
+            return makeNode(t, body, diff);
+        }
+        if (t.type == LexToken.Type.INTEGRAL_DEF) {
+            next();
+            NodoAST lower = parsePrefix();
+            NodoAST upper = parsePrefix();
+            NodoAST body  = parsePrefix();
+            NodoAST diff  = (peek().type == LexToken.Type.DIFFERENTIAL)
+                    ? new NodoAST(next())
+                    : new NodoAST(new LexToken(LexToken.Type.DIFFERENTIAL, "dx", 3));
+            return makeNode(t, lower, upper, body, diff);
+        }
+        if (t.type == LexToken.Type.SYSTEM_BEGIN) {
+            next();
+            List<NodoAST> rows = new ArrayList<>();
+            while (peek().type != LexToken.Type.SYSTEM_END && peek().type != LexToken.Type.EOF) {
+                rows.add(parseExpr(0));
+                if (peek().type == LexToken.Type.ROW_SEP) next();
+            }
+            expect(LexToken.Type.SYSTEM_END);
+            return makeNode(new LexToken(LexToken.Type.SYSTEM, "{}", 0), rows.toArray(new NodoAST[0]));
+        }
+        throw error("Token inesperado: " + t.type + " '" + t.value + "'");
     }
 
     private NodoAST parsePostfix(NodoAST base) {
-        while (match(LexToken.Type.FACTORIAL, LexToken.Type.PERCENT, LexToken.Type.PRIME)) {
-            LexToken op = previous();
-            NodoAST node = new NodoAST(op);
-            link(node, base);
-            base = node;
+        while (true) {
+            LexToken t = peek();
+            if (t.type == LexToken.Type.FACTORIAL || t.type == LexToken.Type.PERCENT || t.type == LexToken.Type.PRIME) {
+                next();
+                base = makeNode(t, base);
+                continue;
+            }
+            break;
         }
         return base;
     }
 
-    private NodoAST parsePrimary() {
-        NodoAST sys = parseSystemIfAny();
-        if (sys != null) return sys;
-
-        if (match(LexToken.Type.PAREN_OPEN)) {
-            NodoAST inside = parseExpression();
-            consume(LexToken.Type.PAREN_CLOSE, "Se esperaba ')'.");
-            return inside;
-        }
-
-        if (match(
-                LexToken.Type.INTEGER, LexToken.Type.DECIMAL, LexToken.Type.IMAGINARY,
-                LexToken.Type.VARIABLE, LexToken.Type.CONST_PI, LexToken.Type.CONST_E,
-                LexToken.Type.DIFFERENTIAL
-        )) {
-            return new NodoAST(previous());
-        }
-
-        if (match(LexToken.Type.RADICAL)) {
-            LexToken op = previous();
-            NodoAST arg = parsePrimary();
-            NodoAST node = new NodoAST(op);
-            link(node, arg);
-            return node;
-        }
-
-        if (match(LexToken.Type.LOG, LexToken.Type.LN, LexToken.Type.LOG_BASE2, LexToken.Type.LOG_BASE10)) {
-            LexToken op = previous();
-            NodoAST arg = parsePrimary();
-            NodoAST node = new NodoAST(op);
-            link(node, arg);
-            return node;
-        }
-
-        if (match(
-                LexToken.Type.TRIG_SIN, LexToken.Type.TRIG_COS, LexToken.Type.TRIG_TAN,
-                LexToken.Type.TRIG_COT, LexToken.Type.TRIG_SEC, LexToken.Type.TRIG_CSC,
-                LexToken.Type.TRIG_ARCSIN, LexToken.Type.TRIG_ARCCOS, LexToken.Type.TRIG_ARCTAN,
-                LexToken.Type.TRIG_ARCCOT, LexToken.Type.TRIG_ARCSEC, LexToken.Type.TRIG_ARCCSC
-        )) {
-            LexToken op = previous();
-            NodoAST arg = parsePrimary();
-            NodoAST node = new NodoAST(op);
-            link(node, arg);
-            return node;
-        }
-
-        if (match(LexToken.Type.INTEGRAL_INDEF)) {
-            LexToken op = previous();
-            consume(LexToken.Type.PAREN_OPEN, "Se esperaba '(' después de ∫.");
-            NodoAST body = parseExpression();
-            consume(LexToken.Type.PAREN_CLOSE, "Se esperaba ')' al cerrar el integrando.");
-            NodoAST node = new NodoAST(op);
-            node.hijos.add(body);
-            if (match(LexToken.Type.DIFFERENTIAL)) node.hijos.add(new NodoAST(previous()));
-            return node;
-        }
-
-        if (match(LexToken.Type.DERIV)) {
-            LexToken op = previous();
-            NodoAST arg;
-            if (match(LexToken.Type.PAREN_OPEN)) {
-                arg = parseExpression();
-                consume(LexToken.Type.PAREN_CLOSE, "Se esperaba ')' al cerrar el argumento del diferencial.");
-            } else {
-                arg = parsePower();
-            }
-            NodoAST node = new NodoAST(op);
-            link(node, arg);
-            return node;
-        }
-
-        if (match(LexToken.Type.ABS_OPEN)) {
-            NodoAST inside = parseExpression();
-            consume(LexToken.Type.ABS_CLOSE, "Se esperaba '|' de cierre en valor absoluto.");
-            NodoAST node = new NodoAST(new LexToken(LexToken.Type.ABS, "| |", 9));
-            link(node, inside);
-            return node;
-        }
-
-        if (match(LexToken.Type.INTEGRAL_DEF)) {
-            LexToken op = previous();
-            NodoAST lower = parseGroupedOrAtomic("límite inferior");
-            NodoAST upper = parseGroupedOrAtomic("límite superior");
-            NodoAST body;
-            if (check(LexToken.Type.PAREN_OPEN)) {
-                advance();
-                body = parseExpression();
-                consume(LexToken.Type.PAREN_CLOSE, "Se esperaba ')' al cerrar el integrando.");
-            } else {
-                body = parsePrimary();
-            }
-            consume(LexToken.Type.DIFFERENTIAL, "Se esperaba diferencial (dx o dy) en integral definida.");
-            NodoAST node = new NodoAST(op);
-            link(node, lower);
-            link(node, upper);
-            link(node, body);
-            link(node, new NodoAST(previous()));
-            return node;
-        }
-
-        throw error(peek(), "Token inesperado: " + peek().type + " '" + peek().value + "'");
-    }
-
-    private void link(NodoAST parent, NodoAST child) {
-        if (parent != null && child != null) {
-            child.parent = parent;
-            parent.hijos.add(child);
-        }
-    }
-
-    private NodoAST parseSystemIfAny() {
-        if (!match(LexToken.Type.SYSTEM_BEGIN)) return null;
-        LexToken sysTok = new LexToken(LexToken.Type.SYSTEM, "SYSTEM", 0);
-        NodoAST system = new NodoAST(sysTok);
-        link(system, parseExpression());
-        while (match(LexToken.Type.ROW_SEP)) link(system, parseExpression());
-        consume(LexToken.Type.SYSTEM_END, "Se esperaba '}' al cerrar el sistema.");
-        return system;
-    }
-
-    private NodoAST parseGroupedOrAtomic(String what) {
-        if (match(LexToken.Type.PAREN_OPEN)) {
-            NodoAST e = parseExpression();
-            consume(LexToken.Type.PAREN_CLOSE, "Se esperaba ')' al cerrar " + what + ".");
+    private NodoAST parseFuncArg() {
+        if (peek().type == LexToken.Type.PAREN_OPEN) {
+            next();
+            NodoAST e = parseExpr(0);
+            expect(LexToken.Type.PAREN_CLOSE);
             return e;
         }
-        return parsePrimary();
+        return parsePrefix();
     }
 
-    private boolean match(LexToken.Type... types) {
-        for (LexToken.Type t : types) {
-            if (check(t)) { advance(); return true; }
+    private boolean isBinary(LexToken t) {
+        if (t == null) return false;
+        switch (t.type) {
+            case SUM: case SUB: case MUL: case DIV: case EXP: case EQUAL:
+                return true;
+            default: return false;
         }
-        return false;
     }
 
-    private boolean check(LexToken.Type type) {
-        return peek().type == type;
+    private boolean isUnaryFunc(LexToken.Type tt) {
+        switch (tt) {
+            case TRIG_SIN: case TRIG_COS: case TRIG_TAN:
+            case TRIG_COT: case TRIG_SEC: case TRIG_CSC:
+            case TRIG_ARCSIN: case TRIG_ARCCOS: case TRIG_ARCTAN:
+            case TRIG_ARCCOT: case TRIG_ARCSEC: case TRIG_ARCCSC:
+            case LOG: case LN:
+                return true;
+            default: return false;
+        }
     }
 
-    private LexToken advance() {
-        if (!isAtEnd()) current++;
-        return previous();
+    private boolean isAtom(LexToken t) {
+        if (t == null) return false;
+        switch (t.type) {
+            case INTEGER: case DECIMAL: case IMAGINARY:
+            case VARIABLE: case CONST_PI: case CONST_E:
+                return true;
+            default: return false;
+        }
     }
 
-    private boolean isAtEnd() {
-        return current >= tokens.size() || tokens.get(current).type == LexToken.Type.EOF;
+    private NodoAST makeNode(LexToken op, NodoAST... children) {
+        NodoAST n = new NodoAST(new LexToken(op.type, op.value, op.prioridad));
+        if (children != null) for (NodoAST c : children) n.addHijo(c);
+        return n;
     }
 
     private LexToken peek() {
-        int idx = Math.min(current, tokens.size() - 1);
-        return tokens.get(idx);
+        if (pos >= tokens.size()) return new LexToken(LexToken.Type.EOF, "", 0);
+        return tokens.get(pos);
     }
 
-    private LexToken previous() {
-        int idx = Math.max(0, current - 1);
-        return tokens.get(idx);
+    private LexToken next() {
+        LexToken t = peek();
+        pos = Math.min(pos + 1, tokens.size());
+        return t;
     }
 
-    private void consume(LexToken.Type type, String message) {
-        if (check(type)) { advance(); return; }
-        throw error(peek(), message);
+    private void expect(LexToken.Type type) {
+        LexToken t = peek();
+        if (t.type != type) throw error("Se esperaba " + type + " y llegó " + t.type);
+        next();
     }
 
-    private RuntimeException error(LexToken tok, String msg) {
+    private RuntimeException error(String msg) {
         return new RuntimeException(msg);
     }
 }

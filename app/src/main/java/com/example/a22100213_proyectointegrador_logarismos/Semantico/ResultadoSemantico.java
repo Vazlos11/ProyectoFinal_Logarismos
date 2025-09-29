@@ -10,6 +10,11 @@ public class ResultadoSemantico {
     public Set<TipoExpresion> subtipos;
     public List<SemanticoError> errores;
 
+    public boolean graficable = false;
+    public String varIndep = "x";
+    public String varDep = "y";
+    public String modoGraf = "";
+
     public ResultadoSemantico() {
         this.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
         this.subtipos = new LinkedHashSet<>();

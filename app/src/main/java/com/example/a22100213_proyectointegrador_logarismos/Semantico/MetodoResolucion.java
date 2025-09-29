@@ -2,6 +2,7 @@ package com.example.a22100213_proyectointegrador_logarismos.Semantico;
 
 public enum MetodoResolucion {
     NINGUNO,
+    EXPRESION_SIN_OBJETIVO,
     EVALUACION_DIRECTA,
     SUSTITUCION_SIMBOLICA_EVALUACION,
     ALGEBRA_COMPLEJOS,

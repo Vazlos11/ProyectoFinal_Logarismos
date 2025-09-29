@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
             "\\log_{2}",
             "\\log_{10}",
             "\\%",
-            "'"
+            "'", "''", "′"
     ));
 
     private static final Map<String, String> latexMap = new HashMap<>();
@@ -1011,201 +1011,53 @@ public class MainActivity extends AppCompatActivity {
         try {
             AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
             NodoAST arbol = parser.parse();
-            ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
+
+            ResultadoSemantico rs = com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico.analizar(arbol);
+
             StringBuilder sb = new StringBuilder();
             sb.append("Tipo: ").append(formatTipo(rs.tipoPrincipal)).append("\n");
-            if (rs.subtipos != null && !rs.subtipos.isEmpty()) sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append("\n");
-            else sb.append("Subtipos: ninguno\n");
-            if (rs.errores == null || rs.errores.isEmpty()) sb.append("Errores: ninguno\n");
-            else sb.append("Errores:\n").append(formatErrores(rs.errores));
+            if (rs.subtipos != null && !rs.subtipos.isEmpty())
+                sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append("\n");
+            else
+                sb.append("Subtipos: ninguno\n");
+            if (rs.errores == null || rs.errores.isEmpty())
+                sb.append("Errores: ninguno\n");
+            else
+                sb.append("Errores:\n").append(formatErrores(rs.errores));
             String plan = com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion.plan(arbol, rs);
-            if (plan != null && !plan.trim().isEmpty() && !"Sin objetivo de resolución".equalsIgnoreCase(plan.trim())) {
+            if (plan != null && !plan.trim().isEmpty() && !"Sin método asignado".equalsIgnoreCase(plan.trim())) {
                 sb.append("\nPlan: ").append(plan);
             }
             test.setText(sb.toString());
+
+            com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr =
+                    com.example.a22100213_proyectointegrador_logarismos.resolucion.MotorResolucion.resolver(arbol, rs);
+
+            if (rr != null) {
+                String finalTex = (rr.latexFinal != null && !rr.latexFinal.trim().isEmpty())
+                        ? rr.latexFinal.trim()
+                        : com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(
+                        rr.resultado != null ? rr.resultado : arbol
+                );
+                if (finalTex == null) finalTex = "";
+                if (!finalTex.startsWith("$$")) {
+                    finalTex = "$$\\Large " + finalTex + " $$";
+                }
+                answer.setText(finalTex);
+            } else {
+                answer.setText("");
+            }
         } catch (RuntimeException ex) {
             test.setText("Error de sintaxis: " + ex.getMessage());
-        } catch (Exception ignored) {
+            answer.setText("");
+        } catch (Exception ex) {
             test.setText("Ocurrió un problema inesperado al procesar la expresión.");
+            answer.setText("");
+        } catch (Throwable ex) {
+            test.setText("Fallo crítico del motor: " + ex.getClass().getSimpleName());
+            answer.setText("");
         }
     }
-
-//    public void solve(View view) {
-//        List<LexToken> lexTokens = AnalisisLexico.analizar(rootTokens);
-//        try {
-//            AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
-//            NodoAST arbol = parser.parse();
-//            ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
-//
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("Tipo: ").append(formatTipo(rs.tipoPrincipal)).append("\n");
-//            if (rs.subtipos != null && !rs.subtipos.isEmpty()) sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append("\n");
-//            else sb.append("Subtipos: ninguno\n");
-//            if (rs.errores == null || rs.errores.isEmpty()) sb.append("Errores: ninguno\n");
-//            else sb.append("Errores:\n").append(formatErrores(rs.errores));
-//            String plan = com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion.plan(arbol, rs);
-//            if (plan != null && !plan.trim().isEmpty() && !"Sin objetivo de resolución".equalsIgnoreCase(plan.trim())) {
-//                sb.append("\nPlan: ").append(plan);
-//            }
-//            test.setText(sb.toString());
-//
-//            String symjaExpr = toSymja(arbol);
-//            boolean symjaOk = false;
-//            if (symjaExpr != null && symjaExpr.contains("==")) {
-//                String var = pickSingleVar(arbol);
-//                if (var != null) {
-//                    try {
-//                        ExprEvaluator ev = new ExprEvaluator();
-//                        IExpr tex = ev.evaluate("ToString(Solve[" + symjaExpr + "," + var + "], TeXForm)");
-//                        String out = tex.toString();
-//                        if (out != null && out.length() > 1 && out.charAt(0) == '\"' && out.charAt(out.length()-1) == '\"') {
-//                            out = out.substring(1, out.length()-1);
-//                        }
-//                        if (out != null && !out.equals("Null") && !out.isEmpty()) {
-//                            answer.setText("$$\\Large " + out + "$$");
-//                            symjaOk = true;
-//                        }
-//                    } catch (Throwable t) {
-//                        answer.setText("$$\\Large \\text{Symja falló: " + t.getClass().getSimpleName() + "} $$");
-//                    }
-//                }
-//            }
-//
-//            if (!symjaOk) {
-//                String var = pickSingleVar(arbol);
-//                Double lin = trySolveLinear(arbol, var);
-//                if (lin != null) {
-//                    String latex = var + "=" + (lin % 1.0 == 0 ? String.valueOf(lin.longValue()) : lin.toString());
-//                    answer.setText("$$\\Large " + latex + "$$");
-//                }
-//            }
-//        } catch (RuntimeException ex) {
-//            test.setText("Error de sintaxis: " + ex.getMessage());
-//        } catch (Exception ignored) {
-//            test.setText("Ocurrió un problema inesperado al procesar la expresión.");
-//        }
-//    }
-//
-//    private static class LinForm {
-//        double a; // coeficiente de la variable
-//        double b; // término independiente
-//        boolean ok;
-//        LinForm(double a, double b, boolean ok){ this.a=a; this.b=b; this.ok=ok; }
-//    }
-//
-//    private Double trySolveLinear(NodoAST root, String varName) {
-//        if (root == null || root.token == null || root.hijos.size()!=2 || root.token.type != LexToken.Type.EQUAL) return null;
-//        LinForm L = toLinear(root.hijos.get(0), varName);
-//        LinForm R = toLinear(root.hijos.get(1), varName);
-//        if (!L.ok || !R.ok) return null;
-//        double a = L.a - R.a;
-//        double b = R.b - L.b;
-//        if (Math.abs(a) < 1e-12) return null;
-//        return b / a;
-//    }
-//
-//    private LinForm toLinear(NodoAST n, String varName) {
-//        if (n == null || n.token == null) return new LinForm(0,0,false);
-//        LexToken.Type t = n.token.type;
-//
-//        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) {
-//            try { return new LinForm(0, Double.parseDouble(n.token.value), true); }
-//            catch (Exception e) { return new LinForm(0,0,false); }
-//        }
-//        if (t == LexToken.Type.VARIABLE) {
-//            return varName.equals(n.token.value) ? new LinForm(1,0,true) : new LinForm(0,0,false);
-//        }
-//        if (t == LexToken.Type.SUM || t == LexToken.Type.SUB) {
-//            if (n.hijos.size()!=2) return new LinForm(0,0,false);
-//            LinForm L = toLinear(n.hijos.get(0), varName);
-//            LinForm R = toLinear(n.hijos.get(1), varName);
-//            if (!L.ok || !R.ok) return new LinForm(0,0,false);
-//            if (t == LexToken.Type.SUM) return new LinForm(L.a+R.a, L.b+R.b, true);
-//            return new LinForm(L.a-R.a, L.b-R.b, true);
-//        }
-//        if (t == LexToken.Type.MUL) {
-//            if (n.hijos.size()!=2) return new LinForm(0,0,false);
-//            LinForm A = toLinear(n.hijos.get(0), varName);
-//            LinForm B = toLinear(n.hijos.get(1), varName);
-//            if (A.ok && B.ok) {
-//                if (Math.abs(A.a) < 1e-12) return new LinForm(B.a*A.b, B.b*A.b, true);
-//                if (Math.abs(B.a) < 1e-12) return new LinForm(A.a*B.b, A.b*B.b, true);
-//                return new LinForm(0,0,false);
-//            }
-//            if (A.ok && Math.abs(A.a) < 1e-12) return new LinForm(0,0,false);
-//            if (B.ok && Math.abs(B.a) < 1e-12) return new LinForm(0,0,false);
-//            return new LinForm(0,0,false);
-//        }
-//        if (t == LexToken.Type.DIV) {
-//            if (n.hijos.size()!=2) return new LinForm(0,0,false);
-//            LinForm A = toLinear(n.hijos.get(0), varName);
-//            LinForm B = toLinear(n.hijos.get(1), varName);
-//            if (!A.ok || !B.ok) return new LinForm(0,0,false);
-//            if (Math.abs(B.a) > 1e-12) return new LinForm(0,0,false);
-//            if (Math.abs(B.b) < 1e-12) return new LinForm(0,0,false);
-//            return new LinForm(A.a / B.b, A.b / B.b, true);
-//        }
-//        if (t == LexToken.Type.EXP) {
-//            if (n.hijos.size()!=2) return new LinForm(0,0,false);
-//            LinForm base = toLinear(n.hijos.get(0), varName);
-//            LinForm exp  = toLinear(n.hijos.get(1), varName);
-//            if (!base.ok || !exp.ok) return new LinForm(0,0,false);
-//            if (Math.abs(exp.a) > 1e-12) return new LinForm(0,0,false);
-//            if (Math.abs(base.a) < 1e-12 && Math.abs(exp.b - 1.0) < 1e-12) return new LinForm(0, base.b, true);
-//            if (Math.abs(base.a - 1.0) < 1e-12 && Math.abs(base.b) < 1e-12 && Math.abs(exp.b - 1.0) < 1e-12) return new LinForm(1,0,true);
-//            return new LinForm(0,0,false);
-//        }
-//        return new LinForm(0,0,false);
-//    }
-//
-//
-//    private String toSymja(NodoAST n) {
-//        if (n == null || n.token == null) return null;
-//        LexToken.Type t = n.token.type;
-//        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) return n.token.value;
-//        if (t == LexToken.Type.CONST_PI) return "Pi";
-//        if (t == LexToken.Type.CONST_E) return "E";
-//        if (t == LexToken.Type.IMAGINARY) return "I";
-//        if (t == LexToken.Type.VARIABLE) return n.token.value;
-//        if (t == LexToken.Type.SUM || t == LexToken.Type.SUB || t == LexToken.Type.MUL || t == LexToken.Type.DIV || t == LexToken.Type.EXP || t == LexToken.Type.EQUAL) {
-//            if (n.hijos.size() != 2) return null;
-//            String a = toSymja(n.hijos.get(0));
-//            String b = toSymja(n.hijos.get(1));
-//            if (a == null || b == null) return null;
-//            if (t == LexToken.Type.SUM) return "(" + a + "+" + b + ")";
-//            if (t == LexToken.Type.SUB) return "(" + a + "-" + b + ")";
-//            if (t == LexToken.Type.MUL) return "(" + a + "*" + b + ")";
-//            if (t == LexToken.Type.DIV) return "(" + a + "/" + b + ")";
-//            if (t == LexToken.Type.EXP) return "(" + a + "^" + b + ")";
-//            if (t == LexToken.Type.EQUAL) return a + "==" + b;
-//        }
-//        if (!n.hijos.isEmpty()) {
-//            List<String> parts = new ArrayList<>();
-//            for (NodoAST h : n.hijos) {
-//                String s = toSymja(h);
-//                if (s == null) return null;
-//                parts.add(s);
-//            }
-//            if (parts.size() == 1) return parts.get(0);
-//            return "(" + String.join("*", parts) + ")";
-//        }
-//        return null;
-//    }
-//
-//    private String pickSingleVar(NodoAST n) {
-//        Set<String> s = new LinkedHashSet<>();
-//        collectVars(n, s);
-//        if (s.size() == 1) return s.iterator().next();
-//        if (s.contains("x")) return "x";
-//        if (!s.isEmpty()) return s.iterator().next();
-//        return "x";
-//    }
-//
-//    private void collectVars(NodoAST n, Set<String> out) {
-//        if (n == null || n.token == null) return;
-//        if (n.token.type == LexToken.Type.VARIABLE) out.add(n.token.value);
-//        for (NodoAST h : n.hijos) collectVars(h, out);
-//    }
 
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {

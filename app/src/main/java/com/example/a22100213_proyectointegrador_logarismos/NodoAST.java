@@ -4,15 +4,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodoAST {
-
     public LexToken token;
-    public List<NodoAST> hijos;
+    public List<NodoAST> hijos = new ArrayList<>();
     public NodoAST parent;
+
+    public NodoAST() {
+    }
 
     public NodoAST(LexToken token) {
         this.token = token;
-        this.hijos = new ArrayList<>();
-        this.parent = null;
+    }
+
+    public NodoAST(LexToken token, NodoAST child) {
+        this.token = token;
+        if (child != null) {
+            this.hijos.add(child);
+            child.parent = this;
+        }
+    }
+
+    public NodoAST(LexToken token, NodoAST left, NodoAST right) {
+        this.token = token;
+        if (left != null) {
+            this.hijos.add(left);
+            left.parent = this;
+        }
+        if (right != null) {
+            this.hijos.add(right);
+            right.parent = this;
+        }
     }
 
     public void addHijo(NodoAST hijo) {
@@ -20,19 +40,5 @@ public class NodoAST {
             hijo.parent = this;
             this.hijos.add(hijo);
         }
-    }
-
-    public NodoAST getHijo(int index) {
-        return (index >= 0 && index < hijos.size()) ? hijos.get(index) : null;
-    }
-
-    public int numHijos() {
-        return hijos.size();
-    }
-
-    @Override
-    public String toString() {
-        String tv = (token == null) ? "null" : (token.type + (token.value == null ? "" : "(" + token.value + ")"));
-        return "NodoAST{" + tv + ", hijos=" + hijos.size() + "}";
     }
 }

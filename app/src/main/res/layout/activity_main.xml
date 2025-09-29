@@ -9,11 +9,11 @@
     tools:context=".MainActivity">
 
     <com.judemanutd.katexview.KatexView
-        android:layout_marginTop="60dp"
         android:id="@+id/katex_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="30dp"
+        android:layout_marginTop="60dp"
         app:textColor="@android:color/black"
         tools:ignore="MissingClass" />
 
@@ -22,7 +22,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAlignment="center"
-        android:textSize="20sp"/>
+        android:textSize="20sp" />
 
     <com.judemanutd.katexview.KatexView
         android:id="@+id/katex_answer"
@@ -47,7 +47,6 @@
             android:layout_gravity="bottom"
             android:background="@drawable/btn_bordernum"
             tools:ignore="SpeakableTextPresentCheck" />
-
     </LinearLayout>
 
     <LinearLayout
@@ -56,6 +55,7 @@
         android:orientation="vertical"
         android:gravity="bottom">
 
+        <!-- Tabs de teclado -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -67,99 +67,103 @@
                 android:text="Num"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:ignore="SpeakableTextPresentCheck"
                 android:layout_margin="8dp"
-                android:onClick="showNumKeyboard"/>
+                android:onClick="showNumKeyboard"
+                tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="abcd"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:ignore="SpeakableTextPresentCheck"
                 android:layout_margin="8dp"
-                android:onClick="showAlphaKeyboard"/>
+                android:onClick="showAlphaKeyboard"
+                tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="algebra"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:ignore="SpeakableTextPresentCheck"
                 android:layout_margin="8dp"
-                android:onClick="showNumAlgKeyboard"/>
+                android:onClick="showNumAlgKeyboard"
+                tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="trig"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:ignore="SpeakableTextPresentCheck"
                 android:layout_margin="8dp"
-                android:onClick="showTrigKeyboard"/>
-
-            <android.widget.Button
-                android:text="∫   dx"
-                style="@style/btn_tec"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:ignore="SpeakableTextPresentCheck"
-                android:layout_margin="8dp"
-                android:onClick="showAvKeyboard"/>
-
-        </LinearLayout>
-
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:rowCount="1"
-            android:columnCount="4"
-            android:background="#C1BEBE"
-            android:gravity="fill_horizontal">
-
-            <android.widget.Button
-                style="@style/TecladoButton"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_columnWeight="2"
-                android:layout_rowWeight="@integer/material_motion_duration_long_1"
-                android:background="@drawable/tecselec"
-                android:text="Guardados"
+                android:onClick="showTrigKeyboard"
                 tools:ignore="SpeakableTextPresentCheck" />
 
-            <android.widget.ImageButton
+            <android.widget.Button
+                style="@style/btn_tec"
+                android:text="deriv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:onClick="showAvKeyboard"
+                tools:ignore="SpeakableTextPresentCheck" />
+        </LinearLayout>
+
+        <!-- Barra superior del teclado: estable con weights -->
+        <LinearLayout
+            android:id="@+id/toolbar_keyboard"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:background="#C1BEBE"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <android.widget.Button
+                android:id="@+id/btn_saved"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="2"
+                android:text="GUARDADOS"
+                android:background="@drawable/tecselec"
+                tools:ignore="SpeakableTextPresentCheck" />
+
+            <ImageButton
+                android:id="@+id/btn_left"
                 android:onClick="moveCursorLeft"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_columnWeight="1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="@drawable/tecselec"
-                android:padding="30dp"
                 android:src="@drawable/baseline_arrow_back_ios_24"
-                tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+                android:scaleType="centerInside"
+                tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
 
-            <android.widget.ImageButton
+            <!-- Flecha derecha -->
+            <ImageButton
+                android:id="@+id/btn_right"
                 android:onClick="moveCursorRight"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="@drawable/tecselec"
-                android:padding="30dp"
                 android:src="@drawable/baseline_arrow_forward_ios_24"
-                tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+                android:scaleType="centerInside"
+                tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
 
-            <android.widget.ImageButton
+            <!-- Borrar -->
+            <ImageButton
+                android:id="@+id/btn_delete"
                 android:onClick="deleteChar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="@drawable/tecselec"
-                android:padding="30dp"
                 android:src="@drawable/baseline_backspace_24"
-                tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+                android:scaleType="centerInside"
+                tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
+        </LinearLayout>
 
-        </GridLayout>
-
+        <!-- Teclados -->
         <ViewFlipper
             android:id="@+id/keyboardsFlipp"
             android:layout_width="match_parent"
@@ -169,6 +173,7 @@
             android:measureAllChildren="false"
             android:animateFirstView="false">
 
+            <!-- NUM -->
             <GridLayout
                 android:id="@+id/keyboard_num"
                 android:layout_width="match_parent"
@@ -179,237 +184,83 @@
                 android:orientation="horizontal"
                 android:useDefaultMargins="false">
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="( )"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="( )"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="[ ]"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="[ ]"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="7"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="7"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="8"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="9"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="/"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="8"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="^2"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="√"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="4"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="5"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="6"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="*"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="9"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="^"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="x"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="1"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="2"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="3"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="-"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="/"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="^2"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="√"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="4"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="5"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="6"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="*"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="^"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="x"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="1"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="2"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="3"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="-"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="π"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="%"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"/>
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="0"
-                    android:background="@drawable/btn_bordernum"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"/>
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="."
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"/>
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="="
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"/>
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="+"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="π"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="%"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="0"
+                    android:background="@drawable/btn_bordernum" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="."
+                    android:layout_columnWeight="1" style="@style/TecladoButton"
+                    android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="="
+                    android:layout_columnWeight="1" style="@style/TecladoButton"
+                    android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="+"
+                    android:layout_columnWeight="1" style="@style/TecladoButton"
+                    android:layout_width="0dp" android:layout_height="wrap_content"/>
 
             </GridLayout>
 
@@ -723,260 +574,100 @@
                 android:orientation="horizontal"
                 android:useDefaultMargins="false">
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="log10"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="log10"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="!"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="!"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="|    |"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="|    |"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="ln"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="ln"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="log2"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="log2"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="{ ... }"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:background="@drawable/button_border"
-                    tools:ignore="HardcodedText,SpeakableTextPresentCheck" />
+                <android.widget.Button android:onClick="ins_char" android:text="{ ... }"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_columnWeight="1" android:background="@drawable/button_border"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="1"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="a/b"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="f(x)"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="log"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="log"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="e"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="e"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="√"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
             </GridLayout>
 
+            <!-- TRIG LIMPIA (sin duplicados) -->
             <GridLayout
                 android:id="@+id/keyboard_trig"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:columnCount="4"
-                android:rowCount="4"
+                android:rowCount="3"
                 android:padding="0dp"
                 android:orientation="horizontal"
                 android:useDefaultMargins="false">
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="sin"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="sin"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="cos"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="tan"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="cot"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="cos"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                <android.widget.Button android:onClick="ins_char" android:text="sec"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="csc"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="arcsin"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="arccos"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
 
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="tan"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="cot"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arcsin"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arccos"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:background="@drawable/button_border"
-                    tools:ignore="HardcodedText,SpeakableTextPresentCheck" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arctan"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arccot"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="cot"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="sec"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="csc"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arccot"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arcsec"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="arccsc"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
+                <android.widget.Button android:onClick="ins_char" android:text="arctan"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="arcsec"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="arccsc"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+                <android.widget.Button android:onClick="ins_char" android:text="arccot"
+                    android:background="@drawable/button_border" android:layout_columnWeight="1"
+                    style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
             </GridLayout>
 
+            <!-- DERIVADAS E INTEGRALES (AV) -->
             <GridLayout
                 android:id="@+id/keyboard_av"
                 android:layout_width="match_parent"
@@ -987,6 +678,7 @@
                 android:orientation="horizontal"
                 android:useDefaultMargins="false">
 
+                <!-- Derivadas -->
                 <android.widget.Button
                     android:onClick="ins_char"
                     android:text="d/dx"
@@ -994,9 +686,27 @@
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                    android:layout_height="wrap_content"/>
 
+                <android.widget.Button
+                    android:onClick="ins_char"
+                    android:text="'"
+                    android:background="@drawable/button_border"
+                    android:layout_columnWeight="1"
+                    style="@style/TecladoButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"/>
+
+                <android.widget.Button
+                    android:onClick="ins_char"
+                    android:text="''"
+                    android:background="@drawable/button_border"
+                    android:layout_columnWeight="1"
+                    style="@style/TecladoButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"/>
+
+                <!-- Integrales -->
                 <android.widget.Button
                     android:onClick="ins_char"
                     android:text="∫   dx"
@@ -1004,8 +714,7 @@
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                    android:layout_height="wrap_content"/>
 
                 <android.widget.Button
                     android:onClick="ins_char"
@@ -1014,28 +723,7 @@
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="dy/dx"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
-                    android:text="d/d_"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                    android:layout_height="wrap_content"/>
 
                 <android.widget.Button
                     android:onClick="ins_char"
@@ -1044,43 +732,37 @@
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                    android:layout_height="wrap_content"/>
 
+                <!-- Diferenciales frecuentes -->
                 <android.widget.Button
                     android:onClick="ins_char"
                     android:text="dx"
+                    android:background="@drawable/button_border"
+                    android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:background="@drawable/button_border"
-                    tools:ignore="HardcodedText,SpeakableTextPresentCheck" />
+                    android:layout_height="wrap_content"/>
 
                 <android.widget.Button
                     android:onClick="ins_char"
-                    android:text="dy"
+                    android:text="f'(x)"
                     android:background="@drawable/button_border"
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
+                    android:layout_height="wrap_content"/>
 
                 <android.widget.Button
                     android:onClick="ins_char"
-                    android:text="a/b"
+                    android:text="y'"
                     android:background="@drawable/button_border"
                     android:layout_columnWeight="1"
                     style="@style/TecladoButton"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
+                    android:layout_height="wrap_content"/>
             </GridLayout>
 
         </ViewFlipper>
-
     </LinearLayout>
-
 </LinearLayout>
