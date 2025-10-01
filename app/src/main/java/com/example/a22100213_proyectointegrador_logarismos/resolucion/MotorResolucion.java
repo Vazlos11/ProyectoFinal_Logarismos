@@ -73,6 +73,16 @@ public class MotorResolucion {
             rr.pasos.add(new PasoResolucion("\\text{Evaluación directa} \\Rightarrow " + rr.latexFinal));
             return rr;
         }
+        String sDeg = AstUtils.toSymja(astInjectDegrees(n));
+        if (sDeg != null) {
+            Double vdeg = SymjaBridge.evalDouble(sDeg);
+            if (vdeg != null) {
+                rr.resultado = AstUtils.number(vdeg);
+                rr.latexFinal = AstUtils.toTeX(rr.resultado);
+                rr.pasos.add(new PasoResolucion("\\text{Trig en grados} \\Rightarrow " + rr.latexFinal));
+                return rr;
+            }
+        }
         String s = AstUtils.toSymja(n);
         if (s != null) {
             Double v = SymjaBridge.evalDouble(s);
@@ -88,6 +98,53 @@ public class MotorResolucion {
         rr.pasos.add(new PasoResolucion("\\text{Sin cambio} \\Rightarrow " + rr.latexFinal));
         return rr;
     }
+
+    private static boolean containsVar(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.VARIABLE) return true;
+        for (NodoAST h : n.hijos) if (containsVar(h)) return true;
+        return false;
+    }
+
+    private static boolean isNumericSubtree(NodoAST n) {
+        Double v = AstUtils.evalConst(n);
+        return v != null && !containsVar(n);
+    }
+
+    private static boolean containsDegreeSymbol(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.VARIABLE && "Degree".equals(n.token.value)) return true;
+        for (NodoAST h : n.hijos) if (containsDegreeSymbol(h)) return true;
+        return false;
+    }
+
+    private static NodoAST astInjectDegrees(NodoAST n) {
+        NodoAST c = AstUtils.cloneTree(n);
+        injectDegreesRec(c);
+        return c;
+    }
+
+    private static void injectDegreesRec(NodoAST n) {
+        if (n == null || n.token == null) return;
+        LexToken.Type t = n.token.type;
+        if (t == LexToken.Type.TRIG_SIN || t == LexToken.Type.TRIG_COS || t == LexToken.Type.TRIG_TAN ||
+                t == LexToken.Type.TRIG_SEC || t == LexToken.Type.TRIG_CSC || t == LexToken.Type.TRIG_COT) {
+            if (n.hijos.size() == 1) {
+                NodoAST arg = n.hijos.get(0);
+                if (isNumericSubtree(arg) && !containsDegreeSymbol(arg)) {
+                    NodoAST deg = AstUtils.atom(LexToken.Type.VARIABLE, "Degree", 1);
+                    NodoAST mul = AstUtils.bin(LexToken.Type.MUL, arg, deg, "*", 6);
+                    n.hijos.set(0, mul);
+                    mul.parent = n;
+                } else {
+                    injectDegreesRec(arg);
+                }
+            }
+        } else {
+            for (NodoAST h : n.hijos) injectDegreesRec(h);
+        }
+    }
+
 
     private static ResultadoResolucion resolverIntegral(NodoAST raiz, boolean definida) {
         ResultadoResolucion rr = new ResultadoResolucion();
@@ -124,19 +181,28 @@ public class MotorResolucion {
         } else {
             NodoAST F = integralRec(ii.cuerpo, ii.var);
             if (F != null) {
+                Double vb = evalAt(F, ii.var, ii.sup);
+                Double va = evalAt(F, ii.var, ii.inf);
+                if (vb != null && va != null) {
+                    double num = vb - va;
+                    rr.resultado = AstUtils.number(num);
+                    rr.latexFinal = AstUtils.toTeX(rr.resultado);
+                    rr.pasos.add(new PasoResolucion("\\text{F(b)-F(a)} \\Rightarrow " + rr.latexFinal));
+                    return rr;
+                }
                 String Fsym = AstUtils.toSymja(F);
                 String aSym = AstUtils.toSymja(ii.inf);
                 String bSym = AstUtils.toSymja(ii.sup);
                 if (Fsym != null && aSym != null && bSym != null) {
-                    String exNum = "N((" + Fsym + "/." + ii.var + "->" + bSym + ") - (" + Fsym + "/." + ii.var + "->" + aSym + "))";
+                    String exNum = "N((ReplaceAll[" + Fsym + "," + ii.var + "->(" + bSym + ")]) - (ReplaceAll[" + Fsym + "," + ii.var + "->(" + aSym + ")]))";
                     Double v = SymjaBridge.evalDouble(exNum);
                     if (v != null) {
                         rr.resultado = AstUtils.number(v);
                         rr.latexFinal = AstUtils.toTeX(rr.resultado);
-                        rr.pasos.add(new PasoResolucion("\\text{Integral definida} \\Rightarrow " + rr.latexFinal));
+                        rr.pasos.add(new PasoResolucion("\\text{F(b)-F(a)} \\Rightarrow " + rr.latexFinal));
                         return rr;
                     }
-                    String exSym = "((" + Fsym + "/." + ii.var + "->" + bSym + ") - (" + Fsym + "/." + ii.var + "->" + aSym + "))";
+                    String exSym = "(ReplaceAll[" + Fsym + "," + ii.var + "->" + bSym + "] - ReplaceAll[" + Fsym + "," + ii.var + "->" + aSym + "])";
                     rr.resultado = raiz;
                     rr.latexFinal = SymjaBridge.toTeX(exSym);
                     rr.pasos.add(new PasoResolucion("\\text{F(b)-F(a)} \\Rightarrow " + rr.latexFinal));
@@ -156,6 +222,15 @@ public class MotorResolucion {
                         rr.pasos.add(new PasoResolucion("\\text{Integral definida} \\Rightarrow " + rr.latexFinal));
                         return rr;
                     }
+                } else {
+                    String ex = "N(Integrate[" + s + ",{" + ii.var + "," + AstUtils.toSymja(ii.inf) + "," + AstUtils.toSymja(ii.sup) + "}])";
+                    Double v3 = SymjaBridge.evalDouble(ex);
+                    if (v3 != null) {
+                        rr.resultado = AstUtils.number(v3);
+                        rr.latexFinal = AstUtils.toTeX(rr.resultado);
+                        rr.pasos.add(new PasoResolucion("\\text{Integral definida} \\Rightarrow " + rr.latexFinal));
+                        return rr;
+                    }
                 }
                 String r = "Integrate[" + s + ",{" + ii.var + "," + AstUtils.toSymja(ii.inf) + "," + AstUtils.toSymja(ii.sup) + "}]";
                 rr.resultado = raiz;
@@ -169,6 +244,43 @@ public class MotorResolucion {
             return rr;
         }
     }
+
+    private static Double evalConstOrSymja(NodoAST n) {
+        Double v = AstUtils.evalConst(n);
+        if (v != null) return v;
+        String s = AstUtils.toSymja(n);
+        if (s != null) return SymjaBridge.evalDouble("N(" + s + ")");
+        return null;
+    }
+
+    private static NodoAST substituteVar(NodoAST expr, String var, double value) {
+        NodoAST rep = AstUtils.number(value);
+        return substituteRec(AstUtils.cloneTree(expr), var, rep);
+    }
+
+    private static NodoAST substituteRec(NodoAST cur, String var, NodoAST rep) {
+        if (cur == null || cur.token == null) return cur;
+        if (cur.token.type == LexToken.Type.VARIABLE && var.equals(cur.token.value) && cur.hijos.isEmpty()) {
+            return AstUtils.cloneTree(rep);
+        }
+        for (int i = 0; i < cur.hijos.size(); i++) {
+            NodoAST ch = cur.hijos.get(i);
+            NodoAST nn = substituteRec(ch, var, rep);
+            if (nn != ch) {
+                cur.hijos.set(i, nn);
+                nn.parent = cur;
+            }
+        }
+        return cur;
+    }
+
+    private static Double evalAt(NodoAST F, String var, NodoAST valueNode) {
+        Double v = AstUtils.evalConst(valueNode);
+        if (v == null) return null;
+        NodoAST Fx = substituteVar(F, var, v);
+        return evalConstOrSymja(Fx);
+    }
+
 
     private static class IntegralInfo {
         NodoAST nodoIntegral;

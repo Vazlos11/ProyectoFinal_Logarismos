@@ -256,13 +256,7 @@ public class MainActivity extends AppCompatActivity {
             case "\\tan":
             case "\\cot":
             case "\\sec":
-            case "\\csc":
-            case "\\arcsin":
-            case "\\arccos":
-            case "\\arctan":
-            case "\\arccot":
-            case "\\arcsec":
-            case "\\arccsc": {
+            case "\\csc": {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
@@ -275,6 +269,40 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+            case "\\arcsin":
+            case "\\arccos":
+            case "\\arctan": {
+                sb.append(t.value);
+                if (!t.children.isEmpty()) {
+                    Token arg = t.children.get(0);
+                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    else {
+                        sb.append("(");
+                        appendTokenWithCursor(sb, arg);
+                        sb.append(")");
+                    }
+                } else sb.append("()");
+                break;
+            }
+            case "\\arcsec":
+            case "\\arccsc":
+            case "\\arccot": {
+                String name = t.value.equals("\\arcsec") ? "\\operatorname{arcsec}"
+                        : t.value.equals("\\arccsc") ? "\\operatorname{arccsc}"
+                        : "\\operatorname{arccot}";
+                sb.append(name);
+                if (!t.children.isEmpty()) {
+                    Token arg = t.children.get(0);
+                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    else {
+                        sb.append("(");
+                        appendTokenWithCursor(sb, arg);
+                        sb.append(")");
+                    }
+                } else sb.append("()");
+                break;
+            }
+
             case "\\log_{2}":
             case "\\log_{10}": {
                 sb.append("\\log_{");
@@ -315,6 +343,9 @@ public class MainActivity extends AppCompatActivity {
         if (latexEquivalent.equals("\\sin") || latexEquivalent.equals("\\cos") ||
                 latexEquivalent.equals("\\tan") || latexEquivalent.equals("\\cot") ||
                 latexEquivalent.equals("\\sec") || latexEquivalent.equals("\\csc") ||
+                latexEquivalent.equals("\\arcsin") || latexEquivalent.equals("\\arccos") ||
+                latexEquivalent.equals("\\arctan") || latexEquivalent.equals("\\arccot") ||
+                latexEquivalent.equals("\\arcsec") || latexEquivalent.equals("\\arccsc") ||
                 latexEquivalent.equals("\\ln")  || latexEquivalent.equals("\\log")) {
             newToken = Token.container(latexEquivalent);
             Token parenGroup = Token.container("()");
@@ -326,6 +357,7 @@ public class MainActivity extends AppCompatActivity {
             updateView();
             return;
         }
+
 
         if ("\\log_{2}".equals(latexEquivalent) || "\\log_{10}".equals(latexEquivalent)) {
             newToken = Token.container(latexEquivalent);
@@ -996,8 +1028,6 @@ public class MainActivity extends AppCompatActivity {
         }
         updateView();
     }
-
-
     public void moveCursorLeft(View view) { moveCursorDelta(-1); }
     public void moveCursorRight(View view) { moveCursorDelta(1); }
     public void showNumKeyboard(View view) { keyboardsFlipp.setDisplayedChild(0); }
@@ -1014,16 +1044,22 @@ public class MainActivity extends AppCompatActivity {
 
             ResultadoSemantico rs = com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico.analizar(arbol);
 
+            if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
+                StringBuilder sbErr = new StringBuilder();
+                sbErr.append("Errores:\n").append(formatErrores(rs.errores));
+                test.setText(sbErr.toString());
+                answer.setText("");
+                return;
+            }
+
             StringBuilder sb = new StringBuilder();
             sb.append("Tipo: ").append(formatTipo(rs.tipoPrincipal)).append("\n");
             if (rs.subtipos != null && !rs.subtipos.isEmpty())
                 sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append("\n");
             else
                 sb.append("Subtipos: ninguno\n");
-            if (rs.errores == null || rs.errores.isEmpty())
-                sb.append("Errores: ninguno\n");
-            else
-                sb.append("Errores:\n").append(formatErrores(rs.errores));
+            sb.append("Errores: ninguno\n");
+
             String plan = com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion.plan(arbol, rs);
             if (plan != null && !plan.trim().isEmpty() && !"Sin método asignado".equalsIgnoreCase(plan.trim())) {
                 sb.append("\nPlan: ").append(plan);
@@ -1058,6 +1094,7 @@ public class MainActivity extends AppCompatActivity {
             answer.setText("");
         }
     }
+
 
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {
