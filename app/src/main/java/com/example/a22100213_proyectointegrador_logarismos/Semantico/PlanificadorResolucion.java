@@ -126,31 +126,153 @@ public class PlanificadorResolucion {
         if (contieneTrig(f)) return MetodoResolucion.DERIVADA_TRIG;
         return MetodoResolucion.NINGUNO;
     }
+    // ¿Coeficiente lineal k en u(x) = k*x + b?  Devuelve null si no es lineal en var.
+    private static Double coefLineal(NodoAST u, String var) {
+        if (u == null || u.token == null) return null;
+        LexToken.Type t = u.token.type;
+
+        if (t == LexToken.Type.VARIABLE && var.equals(u.token.value)) return 1.0;
+
+        Double c = evaluarConstante(u);
+        if (c != null) return 0.0;
+
+        if (t == LexToken.Type.MUL && u.hijos.size() == 2) {
+            Double a = evaluarConstante(u.hijos.get(0));
+            NodoAST b = u.hijos.get(1);
+            if (a != null && b != null && b.token != null && b.token.type == LexToken.Type.VARIABLE && var.equals(b.token.value)) return a;
+
+            Double bconst = evaluarConstante(u.hijos.get(1));
+            NodoAST aNode = u.hijos.get(0);
+            if (bconst != null && aNode != null && aNode.token != null && aNode.token.type == LexToken.Type.VARIABLE && var.equals(aNode.token.value)) return bconst;
+        }
+
+        if ((t == LexToken.Type.SUM || t == LexToken.Type.SUB) && u.hijos.size() == 2) {
+            Double k1 = coefLineal(u.hijos.get(0), var);
+            Double k2 = coefLineal(u.hijos.get(1), var);
+            if (k1 == null || k2 == null) return null;
+            return t == LexToken.Type.SUM ? (k1 + k2) : (k1 - k2);
+        }
+
+        return null;
+    }
+
+    private static boolean esExpDeLineal(NodoAST n, String var) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.EXP && n.hijos.size() == 2) {
+            NodoAST base = n.hijos.get(0), expo = n.hijos.get(1);
+            if (base != null && base.token != null && base.token.type == LexToken.Type.CONST_E) {
+                Double k = coefLineal(expo, var);
+                return k != null && Math.abs(k) > 1e-15;
+            }
+        }
+        return false;
+    }
+
+    private static boolean esSinDeLineal(NodoAST n, String var) {
+        return n != null && n.token != null && n.token.type == LexToken.Type.TRIG_SIN &&
+                coefLineal(n.hijos.get(0), var) != null && Math.abs(coefLineal(n.hijos.get(0), var)) > 1e-15;
+    }
+
+    private static boolean esCosDeLineal(NodoAST n, String var) {
+        return n != null && n.token != null && n.token.type == LexToken.Type.TRIG_COS &&
+                coefLineal(n.hijos.get(0), var) != null && Math.abs(coefLineal(n.hijos.get(0), var)) > 1e-15;
+    }
+
+    private static boolean esProductoMonomioPorExpLineal(NodoAST n, String var) {
+        if (!esProductoDeDosFactores(n)) return false;
+        NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+        return (esMonomioAxnRespecto(a, var) && esExpDeLineal(b, var)) ||
+                (esMonomioAxnRespecto(b, var) && esExpDeLineal(a, var));
+    }
+
+    private static boolean esProductoMonomioPorSinLineal(NodoAST n, String var) {
+        if (!esProductoDeDosFactores(n)) return false;
+        NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+        return (esMonomioAxnRespecto(a, var) && esSinDeLineal(b, var)) ||
+                (esMonomioAxnRespecto(b, var) && esSinDeLineal(a, var));
+    }
+
+    private static boolean esProductoMonomioPorCosLineal(NodoAST n, String var) {
+        if (!esProductoDeDosFactores(n)) return false;
+        NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+        return (esMonomioAxnRespecto(a, var) && esCosDeLineal(b, var)) ||
+                (esMonomioAxnRespecto(b, var) && esCosDeLineal(a, var));
+    }
+
+    private static boolean esLnPorMonomio(NodoAST n, String var) {
+        if (!esProductoDeDosFactores(n)) return false;
+        NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+        boolean aLn = a != null && a.token != null && a.token.type == LexToken.Type.LN &&
+                a.hijos.size() == 1 && contieneVariableExacta(a.hijos.get(0), var);
+        boolean bLn = b != null && b.token != null && b.token.type == LexToken.Type.LN &&
+                b.hijos.size() == 1 && contieneVariableExacta(b.hijos.get(0), var);
+        return (aLn && esMonomioAxnRespecto(b, var)) || (bLn && esMonomioAxnRespecto(a, var));
+    }
+
+    private static boolean esCicloExpTrig(NodoAST n, String var) {
+        if (!esProductoDeDosFactores(n)) return false;
+        NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+        boolean exp = esExpDeLineal(a, var) || esExpDeLineal(b, var);
+        boolean trig = esSinDeLineal(a, var) || esCosDeLineal(a, var) ||
+                esSinDeLineal(b, var) || esCosDeLineal(b, var);
+        return exp && trig;
+    }
 
     private static MetodoResolucion metodoIntegral(NodoAST raiz, boolean definida) {
         NodoAST n = buscarNodo(raiz, definida ? LexToken.Type.INTEGRAL_DEF : LexToken.Type.INTEGRAL_INDEF);
         if (n == null) return MetodoResolucion.NINGUNO;
+
         String var = varIntegracion(n, definida);
         NodoAST cuerpo = extraerCuerpoIntegral(n, definida);
         if (cuerpo == null) return MetodoResolucion.NINGUNO;
 
-        if (esMonomioAxnRespecto(cuerpo, var) && !esExponenteMenosUno(cuerpo, var))
-            return MetodoResolucion.INTEGRAL_REGLA_POTENCIA;
-
-        if (esProductoDeDosFactores(cuerpo) && prioridadLIATE(cuerpo) != 0)
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-
-        if (contieneTrig(cuerpo) && contieneRadical(cuerpo) && esPatronTrigSub(cuerpo, var))
-            return MetodoResolucion.INTEGRAL_TRIGONOMETRICA;
-
-        if (esFraccionRacionalPolinomialProper(cuerpo, var))
-            return MetodoResolucion.INTEGRAL_RACIONAL_PFD;
-
-        if (existeSustitucionSimple(cuerpo))
+        if (esExpDeLineal(cuerpo, var)) {
             return MetodoResolucion.INTEGRAL_SUSTITUCION;
+        }
+
+        if (esProductoMonomioPorExpLineal(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (esProductoMonomioPorSinLineal(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (esProductoMonomioPorCosLineal(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (esLnPorMonomio(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (esCicloExpTrig(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (esMonomioAxnRespecto(cuerpo, var) && !esExponenteMenosUno(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_REGLA_POTENCIA;
+        }
+
+        if (esProductoDeDosFactores(cuerpo) && prioridadLIATE(cuerpo) != 0) {
+            return MetodoResolucion.INTEGRAL_POR_PARTES;
+        }
+
+        if (contieneTrig(cuerpo) && contieneRadical(cuerpo) && esPatronTrigSub(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_TRIGONOMETRICA;
+        }
+
+        if (esFraccionRacionalPolinomialProper(cuerpo, var)) {
+            return MetodoResolucion.INTEGRAL_RACIONAL_PFD;
+        }
+
+        if (existeSustitucionSimple(cuerpo)) {
+            return MetodoResolucion.INTEGRAL_SUSTITUCION;
+        }
 
         return MetodoResolucion.NINGUNO;
     }
+
 
     private static MetodoResolucion metodoAritmetica(NodoAST raiz) {
         if (contieneImaginarios(raiz)) return MetodoResolucion.ALGEBRA_COMPLEJOS;

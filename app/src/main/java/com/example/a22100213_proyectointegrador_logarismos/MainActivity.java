@@ -1094,8 +1094,6 @@ public class MainActivity extends AppCompatActivity {
             answer.setText("");
         }
     }
-
-
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {
             case T1_ARITMETICA: return "Operación aritmética";
