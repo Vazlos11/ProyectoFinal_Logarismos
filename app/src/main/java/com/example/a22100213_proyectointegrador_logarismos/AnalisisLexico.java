@@ -9,12 +9,10 @@ public class AnalisisLexico {
 
     private static final Map<LexToken.Type, Integer> PREC = new HashMap<>();
     static {
-        // RQNF4
         PREC.put(LexToken.Type.PAREN_OPEN, 9);
         PREC.put(LexToken.Type.PAREN_CLOSE, 9);
         PREC.put(LexToken.Type.ABS, 9);
 
-        // Funciones / unarios fuertes
         PREC.put(LexToken.Type.TRIG_SIN, 8);
         PREC.put(LexToken.Type.TRIG_COS, 8);
         PREC.put(LexToken.Type.TRIG_TAN, 8);
@@ -32,7 +30,6 @@ public class AnalisisLexico {
         PREC.put(LexToken.Type.LOG_BASE2, 8);
         PREC.put(LexToken.Type.LOG_BASE10, 8);
         PREC.put(LexToken.Type.RADICAL, 8);
-        PREC.put(LexToken.Type.RADICAL, 8);
         PREC.put(LexToken.Type.FACTORIAL, 8);
         PREC.put(LexToken.Type.PERCENT, 8);
         PREC.put(LexToken.Type.PRIME, 8);
@@ -43,21 +40,16 @@ public class AnalisisLexico {
         PREC.put(LexToken.Type.MUL, 6);
         PREC.put(LexToken.Type.DIV, 6);
 
-        // +, -
         PREC.put(LexToken.Type.SUM, 5);
         PREC.put(LexToken.Type.SUB, 5);
 
-        // ∫
         PREC.put(LexToken.Type.INTEGRAL_DEF, 4);
         PREC.put(LexToken.Type.INTEGRAL_INDEF, 4);
 
-        // d?
         PREC.put(LexToken.Type.DIFFERENTIAL, 3);
 
-        // =
         PREC.put(LexToken.Type.EQUAL, 2);
 
-        // literales
         PREC.put(LexToken.Type.INTEGER, 1);
         PREC.put(LexToken.Type.DECIMAL, 1);
         PREC.put(LexToken.Type.IMAGINARY, 1);
@@ -65,7 +57,6 @@ public class AnalisisLexico {
         PREC.put(LexToken.Type.CONST_PI, 1);
         PREC.put(LexToken.Type.CONST_E, 1);
 
-        // sin precedencia (marcadores de sistema)
         PREC.put(LexToken.Type.SYSTEM_BEGIN, 0);
         PREC.put(LexToken.Type.ROW_SEP, 0);
         PREC.put(LexToken.Type.SYSTEM_END, 0);
@@ -77,6 +68,7 @@ public class AnalisisLexico {
         List<LexToken> out = new ArrayList<>();
         lexFromList(rootTokens, out);
         out.removeIf(t -> t == null || t.type == null);
+        out = insertImplicitMultiplication(out);
         if (out.isEmpty() || out.get(out.size() - 1).type != LexToken.Type.EOF) {
             out.add(new LexToken(LexToken.Type.EOF, "", 0));
         }
@@ -88,7 +80,6 @@ public class AnalisisLexico {
         while (i < list.size()) {
             Token t = list.get(i);
 
-            // d/d_?  -> DERIV con variable opcional
             if (t != null && !t.isContainer && "\\frac{d}{d\\,}".equals(t.value)) {
                 String var = "";
                 int j = i + 1;
@@ -108,7 +99,6 @@ public class AnalisisLexico {
             if (t != null && !t.isContainer && "\\frac{d}{dx}".equals(t.value)) { emit(out, LexToken.Type.DERIV, "x"); i++; continue; }
             if (t != null && !t.isContainer && "\\frac{d}{dy}".equals(t.value)) { emit(out, LexToken.Type.DERIV, "y"); i++; continue; }
 
-            // números (con posible i)
             if (isDigitLeaf(t) || isDotLeaf(t)) {
                 StringBuilder num = new StringBuilder();
                 boolean hasDot = false;
@@ -129,10 +119,8 @@ public class AnalisisLexico {
                 continue;
             }
 
-            // i suelta
             if (isImagUnitLeaf(t)) { emit(out, LexToken.Type.IMAGINARY, "i"); i++; continue; }
 
-            // contenedores o hojas
             if (t.isContainer) {
                 lexFromContainer(t, out);
                 i++;
@@ -147,7 +135,11 @@ public class AnalisisLexico {
         switch (t.value) {
             case "\\exp":
                 emit(out, LexToken.Type.EXP, "^");
-                if (!t.children.isEmpty()) lexFromList(t.children, out);
+                if (!t.children.isEmpty()) {
+                    emit(out, LexToken.Type.PAREN_OPEN, "(");
+                    lexFromList(t.children, out);
+                    emit(out, LexToken.Type.PAREN_CLOSE, ")");
+                }
                 break;
 
             case "^group":
@@ -196,9 +188,10 @@ public class AnalisisLexico {
                     }
                     emit(out, LexToken.Type.PAREN_CLOSE, ")");
                 } else {
-                    // √{…}
                     emit(out, LexToken.Type.RADICAL, "√");
+                    emit(out, LexToken.Type.PAREN_OPEN, "(");
                     lexFromList(t.children, out);
+                    emit(out, LexToken.Type.PAREN_CLOSE, ")");
                 }
                 break;
 
@@ -251,35 +244,46 @@ public class AnalisisLexico {
                 emit(out, LexToken.Type.SYSTEM_END, "}");
                 break;
 
-            // Funciones
-            case "\\sin": emit(out, LexToken.Type.TRIG_SIN, "sin"); lexFromList(t.children, out); break;
-            case "\\cos": emit(out, LexToken.Type.TRIG_COS, "cos"); lexFromList(t.children, out); break;
-            case "\\tan": emit(out, LexToken.Type.TRIG_TAN, "tan"); lexFromList(t.children, out); break;
-            case "\\cot": emit(out, LexToken.Type.TRIG_COT, "cot"); lexFromList(t.children, out); break;
-            case "\\sec": emit(out, LexToken.Type.TRIG_SEC, "sec"); lexFromList(t.children, out); break;
-            case "\\csc": emit(out, LexToken.Type.TRIG_CSC, "csc"); lexFromList(t.children, out); break;
-            case "\\arcsin": emit(out, LexToken.Type.TRIG_ARCSIN, "arcsin"); lexFromList(t.children, out); break;
-            case "\\arccos": emit(out, LexToken.Type.TRIG_ARCCOS, "arccos"); lexFromList(t.children, out); break;
-            case "\\arctan": emit(out, LexToken.Type.TRIG_ARCTAN, "arctan"); lexFromList(t.children, out); break;
-            case "\\arccot": emit(out, LexToken.Type.TRIG_ARCCOT, "arccot"); lexFromList(t.children, out); break;
-            case "\\arcsec": emit(out, LexToken.Type.TRIG_ARCSEC, "arcsec"); lexFromList(t.children, out); break;
-            case "\\arccsc": emit(out, LexToken.Type.TRIG_ARCCSC, "arccsc"); lexFromList(t.children, out); break;
+            case "\\cdot":
+            case "\\cdot ":
+            case "·":
+            case "⋅":
+            case "×":
+            case "\\times":
+                emit(out, LexToken.Type.MUL, "*");
+                break;
 
-            case "\\log": emit(out, LexToken.Type.LOG, "log"); lexFromList(t.children, out); break;
-            case "\\ln":  emit(out, LexToken.Type.LN,  "ln");  lexFromList(t.children, out); break;
+            case "\\sin": emit(out, LexToken.Type.TRIG_SIN, "sin"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\cos": emit(out, LexToken.Type.TRIG_COS, "cos"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\tan": emit(out, LexToken.Type.TRIG_TAN, "tan"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\cot": emit(out, LexToken.Type.TRIG_COT, "cot"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\sec": emit(out, LexToken.Type.TRIG_SEC, "sec"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\csc": emit(out, LexToken.Type.TRIG_CSC, "csc"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arcsin": emit(out, LexToken.Type.TRIG_ARCSIN, "arcsin"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arccos": emit(out, LexToken.Type.TRIG_ARCCOS, "arccos"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arctan": emit(out, LexToken.Type.TRIG_ARCTAN, "arctan"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arccot": emit(out, LexToken.Type.TRIG_ARCCOT, "arccot"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arcsec": emit(out, LexToken.Type.TRIG_ARCSEC, "arcsec"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\arccsc": emit(out, LexToken.Type.TRIG_ARCCSC, "arccsc"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+
+            case "\\log": emit(out, LexToken.Type.LOG, "log"); emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
+            case "\\ln":  emit(out, LexToken.Type.LN,  "ln");  emit(out, LexToken.Type.PAREN_OPEN, "("); lexFromList(t.children, out); emit(out, LexToken.Type.PAREN_CLOSE, ")"); break;
 
             case "\\log_{2}":
                 emit(out, LexToken.Type.LOG_BASE2, "log2");
+                emit(out, LexToken.Type.PAREN_OPEN, "(");
                 if (t.children.size() > 1) lexFromToken(t.children.get(1), out);
+                emit(out, LexToken.Type.PAREN_CLOSE, ")");
                 break;
 
             case "\\log_{10}":
                 emit(out, LexToken.Type.LOG_BASE10, "log10");
+                emit(out, LexToken.Type.PAREN_OPEN, "(");
                 if (t.children.size() > 1) lexFromToken(t.children.get(1), out);
+                emit(out, LexToken.Type.PAREN_CLOSE, ")");
                 break;
 
             default:
-                // fallback: agrupa
                 emit(out, LexToken.Type.PAREN_OPEN, "(");
                 lexFromList(t.children, out);
                 emit(out, LexToken.Type.PAREN_CLOSE, ")");
@@ -301,13 +305,17 @@ public class AnalisisLexico {
             case "-": emit(out, LexToken.Type.SUB, "-"); return;
             case "\\cdot":
             case "\\cdot ":
-            case "*": emit(out, LexToken.Type.MUL, "*"); return;
+            case "·":
+            case "⋅":
+            case "×":
+            case "\\times": emit(out, LexToken.Type.MUL, "*"); return;
             case "/": emit(out, LexToken.Type.DIV, "/"); return;
             case "=": emit(out, LexToken.Type.EQUAL, "="); return;
             case "!": emit(out, LexToken.Type.FACTORIAL, "!"); return;
             case "\\%": emit(out, LexToken.Type.PERCENT, "%"); return;
             case "'":   emit(out, LexToken.Type.PRIME, "'");  return;
             case "\\pi": emit(out, LexToken.Type.CONST_PI, "π"); return;
+            case "E":    emit(out, LexToken.Type.CONST_E, "e"); return;
             case "e":    emit(out, LexToken.Type.CONST_E, "e"); return;
             case "dx":
             case "dy": emit(out, LexToken.Type.DIFFERENTIAL, vs); return;
@@ -345,7 +353,6 @@ public class AnalisisLexico {
         if (vs.matches("[a-zA-Z]{2,}")) { emitVariableSequence(vs, out); return; }
         if (vs.matches("[a-zA-Z]"))     { emit(out, LexToken.Type.VARIABLE, vs); return; }
 
-        // fallback variable
         emit(out, LexToken.Type.VARIABLE, vs);
     }
 
@@ -372,5 +379,57 @@ public class AnalisisLexico {
     private static void emit(List<LexToken> out, LexToken.Type type, String value) {
         int p = PREC.getOrDefault(type, 0);
         out.add(new LexToken(type, value, p));
+    }
+
+    private static List<LexToken> insertImplicitMultiplication(List<LexToken> in) {
+        if (in == null || in.isEmpty()) return in;
+        List<LexToken> r = new ArrayList<>();
+        for (int i = 0; i < in.size(); i++) {
+            LexToken a = in.get(i);
+            r.add(a);
+            if (i == in.size() - 1) break;
+            LexToken b = in.get(i + 1);
+            if (needsMulBetween(a, b)) {
+                r.add(new LexToken(LexToken.Type.MUL, "*", PREC.getOrDefault(LexToken.Type.MUL, 6)));
+            }
+        }
+        return r;
+    }
+
+    private static boolean needsMulBetween(LexToken a, LexToken b) {
+        if (a == null || b == null) return false;
+        if (!leftImplicitOk(a)) return false;
+        if (!rightImplicitOk(b)) return false;
+        if (b.type == LexToken.Type.EXP) return false;
+        if (b.type == LexToken.Type.DIFFERENTIAL) return false;
+        return true;
+    }
+
+    private static boolean leftImplicitOk(LexToken t) {
+        switch (t.type) {
+            case INTEGER: case DECIMAL: case VARIABLE: case IMAGINARY:
+            case CONST_E: case CONST_PI:
+            case PAREN_CLOSE: case ABS_CLOSE:
+            case FACTORIAL: case PERCENT: case PRIME:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static boolean rightImplicitOk(LexToken t) {
+        switch (t.type) {
+            case INTEGER: case DECIMAL: case VARIABLE: case IMAGINARY:
+            case CONST_E: case CONST_PI:
+            case PAREN_OPEN: case ABS_OPEN: case RADICAL:
+            case TRIG_SIN: case TRIG_COS: case TRIG_TAN:
+            case TRIG_COT: case TRIG_SEC: case TRIG_CSC:
+            case TRIG_ARCSIN: case TRIG_ARCCOS: case TRIG_ARCTAN:
+            case TRIG_ARCCOT: case TRIG_ARCSEC: case TRIG_ARCCSC:
+            case LOG: case LN: case LOG_BASE2: case LOG_BASE10:
+                return true;
+            default:
+                return false;
+        }
     }
 }

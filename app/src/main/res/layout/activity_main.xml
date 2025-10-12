@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="30dp"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="200dp"
         app:textColor="@android:color/black"
         tools:ignore="MissingClass" />
 
@@ -150,17 +150,28 @@
                 android:scaleType="centerInside"
                 tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
 
-            <!-- Borrar -->
+            <android.widget.Button
+                android:id="@+id/btn_angle_mode"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="rad"
+                android:onClick="toggleAngleMode"
+                android:background="@drawable/tecselec"
+                tools:ignore="SpeakableTextPresentCheck" />
+
             <ImageButton
                 android:id="@+id/btn_delete"
                 android:onClick="deleteChar"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
+                android:layout_weight="2"
                 android:background="@drawable/tecselec"
                 android:src="@drawable/baseline_backspace_24"
                 android:scaleType="centerInside"
                 tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
+
+
         </LinearLayout>
 
         <!-- Teclados -->

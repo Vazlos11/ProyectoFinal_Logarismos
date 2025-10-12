@@ -17,14 +17,11 @@ public class PowerRuleIntegrator implements IntegratorRule {
 
     @Override
     public ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs) {
-        ResultadoResolucion rr = new ResultadoResolucion();
         IntegralUtils.IntegralInfo ii = IntegralUtils.localizarIntegral(raiz, definida);
-        if (ii == null || ii.cuerpo == null) {
-            rr.resultado = raiz;
-            rr.latexFinal = AstUtils.toTeX(raiz);
-            rr.pasos.add(new PasoResolucion("\\text{Sin cambio} \\Rightarrow " + rr.latexFinal));
-            return rr;
-        }
+        if (ii == null || ii.cuerpo == null) return null;
+
+        ResultadoResolucion rr = new ResultadoResolucion();
+
         if (!definida) {
             NodoAST F = IntegralUtils.integralRec(ii.cuerpo, ii.var);
             if (F != null) {

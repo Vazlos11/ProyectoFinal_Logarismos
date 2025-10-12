@@ -5,7 +5,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.ViewFlipper;
-
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.t2algebra.T2AlgebraResolver;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -30,9 +30,10 @@ public class MainActivity extends AppCompatActivity {
     private KatexView katexView;
     private KatexView answer;
     private ViewFlipper keyboardsFlipp;
-
-    private ExprEvaluator symja;
-    private boolean symjaReady = false;
+    private boolean hasResultShown = false;
+    private static final String PREFS = "logarismos_prefs";
+    private static final String KEY_ANGLE_MODE = "angle_mode";
+    private android.widget.Button btnAngle;
 
     private static final String CURSOR = "\\textcolor{red}{\\vert}";
 
@@ -121,6 +122,11 @@ public class MainActivity extends AppCompatActivity {
         keyboardsFlipp.setInAnimation(this, android.R.anim.fade_in);
         keyboardsFlipp.setOutAnimation(this, android.R.anim.fade_out);
         updateView();
+
+        btnAngle = findViewById(R.id.btn_angle_mode);
+        android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String saved = sp.getString(KEY_ANGLE_MODE, "RADIANS");
+        applyAngleMode(saved);
     }
 
     private boolean isContainerSymbol(String symbol) {
@@ -1042,13 +1048,14 @@ public class MainActivity extends AppCompatActivity {
             AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
             NodoAST arbol = parser.parse();
 
-            ResultadoSemantico rs = com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico.analizar(arbol);
+            ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
 
             if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
                 StringBuilder sbErr = new StringBuilder();
                 sbErr.append("Errores:\n").append(formatErrores(rs.errores));
                 test.setText(sbErr.toString());
                 answer.setText("");
+                hasResultShown = false;
                 return;
             }
 
@@ -1080,20 +1087,26 @@ public class MainActivity extends AppCompatActivity {
                     finalTex = "$$\\Large " + finalTex + " $$";
                 }
                 answer.setText(finalTex);
+                hasResultShown = finalTex.trim().length() > 0;
             } else {
                 answer.setText("");
+                hasResultShown = false;
             }
         } catch (RuntimeException ex) {
             test.setText("Error de sintaxis: " + ex.getMessage());
             answer.setText("");
+            hasResultShown = false;
         } catch (Exception ex) {
             test.setText("Ocurrió un problema inesperado al procesar la expresión.");
             answer.setText("");
+            hasResultShown = false;
         } catch (Throwable ex) {
             test.setText("Fallo crítico del motor: " + ex.getClass().getSimpleName());
             answer.setText("");
+            hasResultShown = false;
         }
     }
+
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {
             case T1_ARITMETICA: return "Operación aritmética";
@@ -1136,4 +1149,26 @@ public class MainActivity extends AppCompatActivity {
         }
         return sb.toString();
     }
+
+    private void applyAngleMode(String mode) {
+        if ("DEGREES".equals(mode)) {
+            T2AlgebraResolver.setDegrees();
+            if (btnAngle != null) btnAngle.setText("Deg");
+        } else {
+            T2AlgebraResolver.setRadians();
+            if (btnAngle != null) btnAngle.setText("Rad");
+        }
+    }
+
+    public void toggleAngleMode(android.view.View v) {
+        android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String cur = sp.getString(KEY_ANGLE_MODE, "RADIANS");
+        String next = "RADIANS".equals(cur) ? "DEGREES" : "RADIANS";
+        sp.edit().putString(KEY_ANGLE_MODE, next).apply();
+        applyAngleMode(next);
+        if (hasResultShown) {
+            solve(null);
+        }
+    }
+
 }

@@ -134,9 +134,10 @@ public class AnalisisSemantico {
     }
 
     private static void validarT2(ResultadoSemantico rs, NodoAST r) {
-        if (varsNoI(r).isEmpty()) rs.errores.add(SemanticoError.error("T2_VAR", "Debe haber al menos una variable", ruta(r)));
-        if (!funcionesConArgumentoValidas(r)) rs.errores.add(SemanticoError.error("T2_ARG", "Funciones con argumento inválido", ruta(r)));
-        if (!parentesisBalanceados(r)) rs.errores.add(SemanticoError.error("T2_PARENS", "Paréntesis no balanceados", ruta(r)));
+        if (!funcionesConArgumentoValidas(r))
+            rs.errores.add(SemanticoError.error("T2_ARG", "Funciones con argumento inválido", ruta(r)));
+        if (!parentesisBalanceados(r))
+            rs.errores.add(SemanticoError.error("T2_PARENS", "Paréntesis no balanceados", ruta(r)));
     }
 
     private static void validarLineal(ResultadoSemantico rs, NodoAST r) {
@@ -210,33 +211,68 @@ public class AnalisisSemantico {
     private static boolean soloArit(NodoAST n) {
         if (n == null || n.token == null) return true;
         LexToken.Type t = n.token.type;
-        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI) return true;
-        if (t == LexToken.Type.RADICAL) {
+
+        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL
+                || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI)
+            return true;
+
+        if (t == LexToken.Type.SUM || t == LexToken.Type.SUB
+                || t == LexToken.Type.MUL || t == LexToken.Type.DIV
+                || t == LexToken.Type.EXP
+                || t == LexToken.Type.PAREN_OPEN || t == LexToken.Type.PAREN_CLOSE) {
             for (NodoAST h : n.hijos) if (!soloArit(h)) return false;
             return true;
         }
-        if (t == LexToken.Type.SUM || t == LexToken.Type.SUB || t == LexToken.Type.MUL || t == LexToken.Type.DIV || t == LexToken.Type.EXP ||
-                t == LexToken.Type.EQUAL || t == LexToken.Type.PAREN_OPEN || t == LexToken.Type.PAREN_CLOSE || t == LexToken.Type.FACTORIAL || t == LexToken.Type.PERCENT) {
-            for (NodoAST h : n.hijos) if (!soloArit(h)) return false;
-            return true;
-        }
+
         return false;
     }
 
     private static void validarDominiosGenerales(ResultadoSemantico rs, NodoAST n) {
         if (n == null || n.token == null) return;
         LexToken.Type t = n.token.type;
+
         if (t == LexToken.Type.DIV && n.hijos.size() == 2) {
             Double den = evalConst(sub(n,1));
-            if (den != null && Math.abs(den) < 1e-15) rs.errores.add(SemanticoError.error("DIV0", "División entre cero", ruta(n)));
+            if (den != null && Math.abs(den) < 1e-15)
+                rs.errores.add(SemanticoError.error("DIV0", "División entre cero", ruta(n)));
         }
+
         if (t == LexToken.Type.RADICAL && n.hijos.size() == 1) {
             Double a = evalConst(sub(n,0));
-            if (a != null && a < 0) rs.errores.add(SemanticoError.error("RAD_NEG", "Raíz con argumento negativo", ruta(n)));
+            if (a != null && a < 0)
+                rs.errores.add(SemanticoError.error("RAD_NEG", "Raíz con argumento negativo", ruta(n)));
         }
+
+        if ((t == LexToken.Type.LN || t == LexToken.Type.LOG
+                || t == LexToken.Type.LOG_BASE2 || t == LexToken.Type.LOG_BASE10) && n.hijos.size() == 1) {
+            Double a = evalConst(sub(n,0));
+            if (a != null && a <= 0)
+                rs.errores.add(SemanticoError.error("LOG_DOM", "Logaritmo con argumento ≤ 0", ruta(n)));
+        }
+
+        if ((t == LexToken.Type.TRIG_ARCSIN || t == LexToken.Type.TRIG_ARCCOS) && n.hijos.size() == 1) {
+            Double a = evalConst(sub(n,0));
+            if (a != null && (a < -1.0 || a > 1.0)) {
+                String code = (t == LexToken.Type.TRIG_ARCSIN) ? "ASIN_DOM" : "ACOS_DOM";
+                String msg  = (t == LexToken.Type.TRIG_ARCSIN) ? "arcsin fuera de dominio [-1,1]" : "arccos fuera de dominio [-1,1]";
+                rs.errores.add(SemanticoError.error(code, msg, ruta(n)));
+            }
+        }
+
+        if ((t == LexToken.Type.TRIG_TAN || t == LexToken.Type.TRIG_COT) && n.hijos.size() == 1) {
+            Double a = evalConst(sub(n,0));
+            if (a != null) {
+                double c = Math.cos(a);
+                double s = Math.sin(a);
+                if (t == LexToken.Type.TRIG_TAN && Math.abs(c) < 1e-15)
+                    rs.errores.add(SemanticoError.error("TAN_UNDEF", "tan indefinida para ese argumento", ruta(n)));
+                if (t == LexToken.Type.TRIG_COT && Math.abs(s) < 1e-15)
+                    rs.errores.add(SemanticoError.error("COT_UNDEF", "cot indefinida para ese argumento", ruta(n)));
+            }
+        }
+
         for (NodoAST h : n.hijos) validarDominiosGenerales(rs, h);
     }
-
 
     private static void validarDominiosArit(ResultadoSemantico rs, NodoAST n) {
         if (n == null) return;

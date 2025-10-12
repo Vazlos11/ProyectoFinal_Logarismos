@@ -28,11 +28,59 @@ public class AnalisisSintactico {
             next();
             boolean rightAssoc = (op.type == LexToken.Type.EXP);
             int nextMinPrec = rightAssoc ? prec : prec + 1;
-            NodoAST right = parseExpr(nextMinPrec);
+            NodoAST right = (op.type == LexToken.Type.EXP) ? parseExponentRHS(nextMinPrec) : parseExpr(nextMinPrec);
             left = makeNode(op, left, right);
             left = parsePostfix(left);
         }
         return left;
+    }
+
+    private NodoAST parseExponentRHS(int minPrecForInner) {
+        NodoAST a = parseExpr(minPrecForInner);
+        while (true) {
+            LexToken t = peek();
+            if (t.type == LexToken.Type.MUL) {
+                next();
+                NodoAST b = parseExponentUnit();
+                a = makeNode(new LexToken(LexToken.Type.MUL, "*", 6), a, b);
+                continue;
+            }
+            if (canStartExponentUnit(t)) {
+                NodoAST b = parseExponentUnit();
+                a = makeNode(new LexToken(LexToken.Type.MUL, "*", 6), a, b);
+                continue;
+            }
+            break;
+        }
+        return a;
+    }
+
+    private boolean canStartExponentUnit(LexToken t) {
+        if (t == null) return false;
+        LexToken.Type tt = t.type;
+        if (tt == LexToken.Type.INTEGER) return true;
+        if (tt == LexToken.Type.DECIMAL) return true;
+        if (tt == LexToken.Type.VARIABLE) return true;
+        if (tt == LexToken.Type.CONST_E) return true;
+        if (tt == LexToken.Type.CONST_PI) return true;
+        if (tt == LexToken.Type.IMAGINARY) return true;
+        if (tt == LexToken.Type.PAREN_OPEN) return true;
+        if (tt == LexToken.Type.ABS_OPEN) return true;
+        if (isUnaryFunc(tt)) return true;
+        if (tt == LexToken.Type.LOG_BASE10 || tt == LexToken.Type.LOG_BASE2 || tt == LexToken.Type.LN || tt == LexToken.Type.LOG) return true;
+        return false;
+    }
+
+    private NodoAST parseExponentUnit() {
+        int saved = pos;
+        try {
+            NodoAST u = parsePrefix();
+            u = parsePostfix(u);
+            return u;
+        } catch (RuntimeException ex) {
+            pos = saved;
+            return parsePrefix();
+        }
     }
 
     private NodoAST parsePrefix() {

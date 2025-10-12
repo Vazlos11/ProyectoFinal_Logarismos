@@ -36,13 +36,13 @@ public final class IntegralResolver implements Resolver {
     public static ResultadoResolucion resolverIndefinida(NodoAST raiz, ResultadoSemantico rs, MetodoResolucion m) {
         IntegratorRule rule;
         switch (m) {
-            case INTEGRAL_POR_PARTES:          rule = new ByPartsExpPolyIntegrator(false); break;
-            case INTEGRAL_SUSTITUCION:         rule = new SubstitutionIntegrator(false); break;
-            case INTEGRAL_TRIGONOMETRICA:      rule = new TrigSubstitutionIntegrator(false); break;
-            case INTEGRAL_RACIONAL_PFD:        rule = new RationalPFDIntegrator(false); break;
+            case INTEGRAL_POR_PARTES:     rule = new ByPartsExpPolyIntegrator(false); break;
+            case INTEGRAL_SUSTITUCION:    rule = new SubstitutionIntegrator(false);   break;
+            case INTEGRAL_TRIGONOMETRICA: rule = new TrigSubstitutionIntegrator(false); break;
+            case INTEGRAL_RACIONAL_PFD:   rule = new RationalPFDIntegrator(false);    break;
             case INTEGRAL_REGLA_POTENCIA:
             case NINGUNO:
-            default:                           rule = new PowerRuleIntegrator(false); break;
+            default:                      rule = new PowerRuleIntegrator(false);      break;
         }
         return rule.apply(raiz, rs);
     }
@@ -51,13 +51,13 @@ public final class IntegralResolver implements Resolver {
         IntegratorRule rule;
         switch (m) {
             case INTEGRAL_POR_PARTES:                       rule = new ByPartsExpPolyIntegrator(true); break;
-            case INTEGRAL_SUSTITUCION:                      rule = new SubstitutionIntegrator(true); break;
+            case INTEGRAL_SUSTITUCION:                      rule = new SubstitutionIntegrator(true);    break;
             case INTEGRAL_TRIGONOMETRICA:                   rule = new TrigSubstitutionIntegrator(true); break;
-            case INTEGRAL_RACIONAL_PFD:                     rule = new RationalPFDIntegrator(true); break;
-            case INTEGRAL_NUMERICA_SIMPSON_O_TRAPECIO:      rule = new SimpsonDefiniteIntegrator(); break;
+            case INTEGRAL_RACIONAL_PFD:                     rule = new RationalPFDIntegrator(true);     break;
+            case INTEGRAL_NUMERICA_SIMPSON_O_TRAPECIO:      rule = new SimpsonDefiniteIntegrator();     break;
             case INTEGRAL_REGLA_POTENCIA:
             case NINGUNO:
-            default:                                        rule = new PowerRuleIntegrator(true); break;
+            default:                                        rule = new PowerRuleIntegrator(true);       break;
         }
         return rule.apply(raiz, rs);
     }
