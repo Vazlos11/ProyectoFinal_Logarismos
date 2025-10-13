@@ -112,7 +112,7 @@
 
             <android.widget.Button
                 style="@style/btn_tec"
-                android:text="algebra"
+                android:text="alg"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
