@@ -6,52 +6,74 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="12dp"
     tools:context=".MainActivity">
 
-    <com.judemanutd.katexview.KatexView
-        android:id="@+id/katex_text"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="30dp"
-        android:layout_marginTop="60dp"
-        app:textColor="@android:color/black"
-        tools:ignore="MissingClass" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
-    <TextView
-        android:id="@+id/test"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAlignment="center"
-        android:textSize="20sp" />
-
-    <com.judemanutd.katexview.KatexView
-        android:id="@+id/katex_answer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:textColor="@android:color/black"
-        tools:ignore="MissingClass" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:orientation="vertical"
-        android:gravity="bottom">
-
-        <android.widget.Button
-            android:onClick="solve"
-            android:text="Resolver"
-            android:layout_margin="20dp"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/btn_tec"
-            android:layout_gravity="bottom"
-            android:background="@drawable/btn_bordernum"
-            tools:ignore="SpeakableTextPresentCheck" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <com.judemanutd.katexview.KatexView
+                android:id="@+id/katex_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
+                app:textColor="@android:color/black"
+                tools:ignore="MissingClass" />
+
+            <TextView
+                android:id="@+id/test"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textAlignment="center"
+                android:textSize="20sp" />
+
+            <com.judemanutd.katexview.KatexView
+                android:id="@+id/katex_answer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:textColor="@android:color/black"
+                tools:ignore="MissingClass" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="bottom"
+                android:paddingBottom="16dp">
+
+                <android.widget.Button
+                    android:onClick="solve"
+                    android:text="Resolver"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/btn_tec"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/btn_bordernum"
+                    tools:ignore="SpeakableTextPresentCheck" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="bottom">
 
@@ -60,51 +82,68 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_horizontal">
+            android:gravity="center_vertical"
+            android:paddingHorizontal="4dp"
+            android:paddingBottom="8dp">
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="Num"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
                 android:onClick="showNumKeyboard"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="abcd"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
                 android:onClick="showAlphaKeyboard"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="algebra"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
                 android:onClick="showNumAlgKeyboard"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="trig"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
                 android:onClick="showTrigKeyboard"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:ignore="SpeakableTextPresentCheck" />
 
             <android.widget.Button
                 style="@style/btn_tec"
                 android:text="deriv"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
                 android:onClick="showAvKeyboard"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:ignore="SpeakableTextPresentCheck" />
         </LinearLayout>
 
@@ -180,9 +219,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="12dp"
             android:measureAllChildren="false"
-            android:animateFirstView="false">
+            android:animateFirstView="false"
+            android:paddingHorizontal="4dp">
 
             <!-- NUM -->
             <GridLayout
