@@ -1,17 +1,22 @@
 package com.example.a22100213_proyectointegrador_logarismos.resolucion;
 
+import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
+
 public class SymjaBridge {
     public static Double evalDouble(String expr) {
         try {
             String s = expr.trim();
             if (s.matches("[-+]?[0-9]*\\.?[0-9]+")) return Double.parseDouble(s);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) { }
         return null;
     }
 
     public static String simplify(String expr) {
         return expr;
+    }
+
+    public static NodoAST simplify(NodoAST raiz) {
+        return raiz;
     }
 
     public static String toTeX(String expr) {

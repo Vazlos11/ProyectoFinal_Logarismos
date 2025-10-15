@@ -4,17 +4,18 @@ import com.example.a22100213_proyectointegrador_logarismos.LexToken;
 import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.MotorResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.SymjaBridge;
 
 import java.text.DecimalFormat;
+import java.util.List;
 
 public final class T2AlgebraResolver {
     public enum AngleMode { RADIANS, DEGREES }
     private static AngleMode angleMode = AngleMode.RADIANS;
-
     private T2AlgebraResolver() {}
-
     public static void setAngleMode(AngleMode mode) { angleMode = mode; }
     public static void setDegrees() { angleMode = AngleMode.DEGREES; }
     public static void setRadians() { angleMode = AngleMode.RADIANS; }
@@ -22,37 +23,85 @@ public final class T2AlgebraResolver {
 
     public static ResultadoResolucion resolver(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
-        Double v = AstUtils.evalConst(raiz);
-        if (v != null) {
-            if (angleMode == AngleMode.DEGREES && esInversaTrig(raiz)) {
-                double deg = Math.toDegrees(v);
-                if (Math.abs(deg) < 1e-12) deg = 0.0;
-                rr.resultado = AstUtils.number(deg);
-                rr.latexFinal = toTeXGrados(deg);
-                rr.pasos.add(new PasoResolucion("\\text{Evaluacion directa (T2, grados)} \\Rightarrow " + rr.latexFinal));
-                return rr;
-            } else {
-                rr.resultado = AstUtils.number(v);
-                rr.latexFinal = AstUtils.toTeX(rr.resultado);
-                rr.pasos.add(new PasoResolucion("\\text{Evaluacion directa (T2)} \\Rightarrow " + rr.latexFinal));
+        String before = AstUtils.toTeX(raiz);
+
+        if (!contieneVariable(raiz)) {
+            Double v = AstUtils.evalConst(raiz);
+            if (v != null && Double.isFinite(v)) {
+                double w = (v == 0.0 ? 0.0 : v);
+                if (angleMode == AngleMode.DEGREES && esInversaTrig(raiz)) {
+                    w = Math.toDegrees(w);
+                    rr.resultado = AstUtils.number(w);
+                    rr.latexFinal = toTeXGrados(w);
+                } else {
+                    rr.resultado = AstUtils.number(w);
+                    rr.latexFinal = AstUtils.toTeX(rr.resultado);
+                }
+                rr.pasos.add(new PasoResolucion("\\text{Evaluación directa (T2)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
                 return rr;
             }
         }
+
+        NodoAST simpl = SymjaBridge.simplify(raiz);
+        if (simpl != null && simpl != raiz) {
+            String after = AstUtils.toTeX(simpl);
+            if (!after.equals(before)) {
+                rr.pasos.add(new PasoResolucion("\\text{Simplificar (T2)}\\; " + before + "\\;\\Rightarrow\\; " + after));
+                ResultadoResolucion sub = MotorResolucion.resolver(
+                        simpl,
+                        com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico.analizar(simpl)
+                );
+                rr.pasos.addAll(sub.pasos);
+                rr.resultado = sub.resultado;
+                rr.latexFinal = sub.latexFinal;
+                return rr;
+            }
+        }
+
+        if (!contieneVariable(raiz)) {
+            Double v2 = AstUtils.evalConst(raiz);
+            if (v2 != null && Double.isFinite(v2)) {
+                double w2 = (v2 == 0.0 ? 0.0 : v2);
+                String after2;
+                if (angleMode == AngleMode.DEGREES && esInversaTrig(raiz)) {
+                    w2 = Math.toDegrees(w2);
+                    rr.resultado = AstUtils.number(w2);
+                    after2 = toTeXGrados(w2);
+                } else {
+                    rr.resultado = AstUtils.number(w2);
+                    after2 = AstUtils.toTeX(rr.resultado);
+                }
+                rr.latexFinal = after2;
+                rr.pasos.add(new PasoResolucion("\\text{Evaluación directa (T2)}\\; " + before + "\\;\\Rightarrow\\; " + after2));
+                return rr;
+            }
+        }
+
         rr.resultado = raiz;
-        rr.latexFinal = AstUtils.toTeX(raiz);
-        rr.pasos.add(new PasoResolucion("\\text{Aun no implementado (T2)} \\Rightarrow " + rr.latexFinal));
+        rr.latexFinal = before;
+        rr.pasos.add(new PasoResolucion("\\text{Sin cambio (T2)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
         return rr;
+    }
+
+    private static boolean contieneVariable(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.VARIABLE) return true;
+        List<NodoAST> hijos = n.hijos;
+        if (hijos != null) for (NodoAST h : hijos) if (contieneVariable(h)) return true;
+        return false;
     }
 
     private static boolean esInversaTrig(NodoAST n) {
         if (n == null || n.token == null) return false;
         LexToken.Type t = n.token.type;
-        return t == LexToken.Type.TRIG_ARCSIN
+        if (t == LexToken.Type.TRIG_ARCSIN
                 || t == LexToken.Type.TRIG_ARCCOS
                 || t == LexToken.Type.TRIG_ARCTAN
                 || t == LexToken.Type.TRIG_ARCCOT
                 || t == LexToken.Type.TRIG_ARCSEC
-                || t == LexToken.Type.TRIG_ARCCSC;
+                || t == LexToken.Type.TRIG_ARCCSC) return true;
+        if (n.hijos != null) for (NodoAST h : n.hijos) if (esInversaTrig(h)) return true;
+        return false;
     }
 
     private static String toTeXGrados(double deg) {

@@ -1,9 +1,13 @@
 package com.example.a22100213_proyectointegrador_logarismos.resolucion.aritmetica;
 
 import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
+import com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
-import com.example.a22100213_proyectointegrador_logarismos.resolucion.*;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.Resolver;
 
 public class AritmeticaResolver implements Resolver {
     @Override
@@ -13,17 +17,20 @@ public class AritmeticaResolver implements Resolver {
 
     @Override
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
-        Double v = AstUtils.evalConst(raiz);
         ResultadoResolucion rr = new ResultadoResolucion();
+        String before = AstUtils.toTeX(raiz);
+        String etiqueta = PlanificadorResolucion.plan(raiz, rs);
+        Double v = AstUtils.evalConst(raiz);
         if (v != null) {
-            rr.resultado = AstUtils.number(v);
+            double w = (v == 0.0 ? 0.0 : v);
+            rr.resultado = AstUtils.number(w);
             rr.latexFinal = AstUtils.toTeX(rr.resultado);
-            rr.pasos.add(new PasoResolucion("\\text{Evaluacion directa} \\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("\\text{" + etiqueta + "}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
             return rr;
         }
         rr.resultado = raiz;
-        rr.latexFinal = AstUtils.toTeX(raiz);
-        rr.pasos.add(new PasoResolucion("\\text{Sin cambio} \\Rightarrow " + rr.latexFinal));
+        rr.latexFinal = before;
+        rr.pasos.add(new PasoResolucion("\\text{Sin cambio (T1)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
         return rr;
     }
 }
