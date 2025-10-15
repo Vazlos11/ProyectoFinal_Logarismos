@@ -655,7 +655,33 @@ public final class IntegralUtils {
 
         return null;
     }
+    public static NodoAST addC(NodoAST F) {
+        NodoAST C = AstUtils.atom(LexToken.Type.VARIABLE, "C", 1);
+        return AstUtils.bin(LexToken.Type.SUM, F, C, "+", 5);
+    }
 
+    public static NodoAST evalDefinida(NodoAST F, String var, NodoAST a, NodoAST b) {
+        if (F == null || a == null || b == null) return null;
+        NodoAST Fb = sustituirVar(F, var, AstUtils.cloneTree(b));
+        NodoAST Fa = sustituirVar(F, var, AstUtils.cloneTree(a));
+        return AstUtils.bin(LexToken.Type.SUB, Fb, Fa, "-", 5);
+    }
+
+    public static NodoAST sustituirVar(NodoAST n, String var, NodoAST con) {
+        if (n == null) return null;
+        if (n.token != null && n.token.type == LexToken.Type.VARIABLE && var.equals(n.token.value) && n.hijos.isEmpty()) {
+            return AstUtils.cloneTree(con);
+        }
+        NodoAST c = new NodoAST(n.token == null ? null : new LexToken(n.token.type, n.token.value, n.token.prioridad));
+        for (NodoAST h : n.hijos) {
+            NodoAST ch = sustituirVar(h, var, con);
+            if (ch != null) {
+                c.hijos.add(ch);
+                ch.parent = c;
+            }
+        }
+        return c;
+    }
 
     public static NodoAST candidatoInterior(NodoAST n) {
         if (n == null || n.token == null) return null;
@@ -674,6 +700,203 @@ public final class IntegralUtils {
             }
         }
         return null;
+    }
+    public static double binom(int n, int k) {
+        if (k < 0 || k > n) return 0.0;
+        if (k == 0 || k == n) return 1.0;
+        k = Math.min(k, n - k);
+        double r = 1.0;
+        for (int i = 1; i <= k; i++) {
+            r = r * (n - k + i) / i;
+        }
+        return r;
+    }
+
+    public static double fallingFactorial(int n, int k) {
+        if (k < 0) return 0.0;
+        if (k == 0) return 1.0;
+        double r = 1.0;
+        for (int i = 0; i < k; i++) {
+            r *= (n - i);
+        }
+        return r;
+    }
+    public static NodoAST integralIndef(NodoAST body, String v) {
+        NodoAST dx = AstUtils.atom(LexToken.Type.VARIABLE, "d" + v, 0);
+        NodoAST n = new NodoAST(new LexToken(LexToken.Type.INTEGRAL_INDEF, "∫", 0));
+        if (body != null) { n.hijos.add(body); body.parent = n; }
+        n.hijos.add(dx); dx.parent = n;
+        return n;
+    }
+
+    public static NodoAST integralDef(NodoAST a, NodoAST b, NodoAST body, String v) {
+        NodoAST dx = AstUtils.atom(LexToken.Type.VARIABLE, "d" + v, 0);
+        NodoAST n = new NodoAST(new LexToken(LexToken.Type.INTEGRAL_DEF, "∫", 0));
+        if (a != null) { n.hijos.add(a); a.parent = n; } else n.hijos.add(AstUtils.number(0.0));
+        if (b != null) { n.hijos.add(b); b.parent = n; } else n.hijos.add(AstUtils.number(1.0));
+        if (body != null) { n.hijos.add(body); body.parent = n; } else n.hijos.add(AstUtils.number(0.0));
+        n.hijos.add(dx); dx.parent = n;
+        return n;
+    }
+
+    public static int prioridadILATE(NodoAST f, String v) {
+        if (esInversa(f, v)) return 1;
+        if (f != null && f.token != null && f.token.type == LexToken.Type.LN) return 2;
+        if (esAlgebraicoSimple(f, v)) return 3;
+        if (esTrigSin(f) || esTrigCos(f)) return 4;
+        if (esExpDeLineal(f)) return 5;
+        return 100;
+    }
+
+    public static boolean esAlgebraicoSimple(NodoAST n, String v) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.VARIABLE && v.equals(n.token.value)) return true;
+        if (n.token.type == LexToken.Type.EXP && n.hijos.size() == 2) {
+            NodoAST base = n.hijos.get(0), ex = n.hijos.get(1);
+            if (base != null && base.token != null && base.token.type == LexToken.Type.VARIABLE && v.equals(base.token.value)) {
+                Double e = AstUtils.evalConst(ex);
+                return e != null;
+            }
+        }
+        return false;
+    }
+
+    public static boolean esInversa(NodoAST n, String v) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.DIV && n.hijos.size() == 2) {
+            Double num = AstUtils.evalConst(n.hijos.get(0));
+            if (num != null && Math.abs(num - 1.0) < 1e-15) {
+                NodoAST d = n.hijos.get(1);
+                return d != null && d.token != null && d.token.type == LexToken.Type.VARIABLE && v.equals(d.token.value);
+            }
+        }
+        if (n.token.type == LexToken.Type.EXP && n.hijos.size() == 2) {
+            NodoAST base = n.hijos.get(0), ex = n.hijos.get(1);
+            if (base != null && base.token != null && base.token.type == LexToken.Type.VARIABLE && v.equals(base.token.value)) {
+                Double e = AstUtils.evalConst(ex);
+                return e != null && Math.abs(e + 1.0) < 1e-15;
+            }
+        }
+        return false;
+    }
+
+    public static NodoAST derivadaSimple(NodoAST f, String v) {
+        if (f == null || f.token == null) return null;
+        LexToken.Type t = f.token.type;
+
+        Double c = AstUtils.evalConst(f);
+        if (c != null) return AstUtils.number(0.0);
+
+        if (t == LexToken.Type.VARIABLE && v.equals(f.token.value)) return AstUtils.number(1.0);
+
+        if (t == LexToken.Type.EXP && f.hijos.size() == 2) {
+            NodoAST base = f.hijos.get(0), ex = f.hijos.get(1);
+            if (base != null && base.token != null && base.token.type == LexToken.Type.VARIABLE && v.equals(base.token.value)) {
+                Double e = AstUtils.evalConst(ex);
+                if (e == null) return null;
+                NodoAST vx = AstUtils.atom(LexToken.Type.VARIABLE, v, 1);
+                if (Math.abs(e - 1.0) < 1e-15) return AstUtils.number(1.0);
+                if (Math.abs(e) < 1e-15) return AstUtils.number(0.0);
+                NodoAST eMinus1 = AstUtils.number(e - 1.0);
+                NodoAST xPow = AstUtils.bin(LexToken.Type.EXP, vx, eMinus1, "^", 7);
+                return AstUtils.bin(LexToken.Type.MUL, AstUtils.number(e), xPow, "*", 6);
+            }
+            if (base != null && base.token != null && base.token.type == LexToken.Type.CONST_E) {
+                Double k = linearCoeff(ex, v);
+                if (k == null) return null;
+                NodoAST ePow = ePowClone(ex);
+                return mulC(ePow, k);
+            }
+            return null;
+        }
+
+        if (t == LexToken.Type.LN && f.hijos.size() == 1) {
+            NodoAST arg = f.hijos.get(0);
+            if (arg != null && arg.token != null && arg.token.type == LexToken.Type.VARIABLE && v.equals(arg.token.value)) {
+                NodoAST vx = AstUtils.atom(LexToken.Type.VARIABLE, v, 1);
+                NodoAST inv = AstUtils.bin(LexToken.Type.DIV, AstUtils.number(1.0), vx, "/", 6);
+                return inv;
+            }
+            return null;
+        }
+
+        if (t == LexToken.Type.DIV && f.hijos.size() == 2) {
+            Double num = AstUtils.evalConst(f.hijos.get(0));
+            NodoAST den = f.hijos.get(1);
+            if (num != null && Math.abs(num - 1.0) < 1e-15 && den != null && den.token != null && den.token.type == LexToken.Type.VARIABLE && v.equals(den.token.value)) {
+                NodoAST vx = AstUtils.atom(LexToken.Type.VARIABLE, v, 1);
+                NodoAST x2 = AstUtils.bin(LexToken.Type.EXP, vx, AstUtils.number(2), "^", 7);
+                NodoAST inv2 = AstUtils.bin(LexToken.Type.DIV, AstUtils.number(1.0), x2, "/", 6);
+                return mulC(inv2, -1.0);
+            }
+        }
+
+        if (t == LexToken.Type.TRIG_SIN && f.hijos.size() == 1) {
+            NodoAST u = f.hijos.get(0);
+            Double k = linearCoeff(u, v);
+            if (k == null) return null;
+            NodoAST cosu = cosClone(u);
+            return mulC(cosu, k);
+        }
+
+        if (t == LexToken.Type.TRIG_COS && f.hijos.size() == 1) {
+            NodoAST u = f.hijos.get(0);
+            Double k = linearCoeff(u, v);
+            if (k == null) return null;
+            NodoAST sinu = sinClone(u);
+            return mulC(sinu, -k);
+        }
+
+        if (t == LexToken.Type.MUL && f.hijos.size() == 2) {
+            Double cL = AstUtils.evalConst(f.hijos.get(0));
+            Double cR = AstUtils.evalConst(f.hijos.get(1));
+            if (cL != null) {
+                NodoAST d = derivadaSimple(f.hijos.get(1), v);
+                return (d == null) ? null : mulC(d, cL);
+            }
+            if (cR != null) {
+                NodoAST d = derivadaSimple(f.hijos.get(0), v);
+                return (d == null) ? null : mulC(d, cR);
+            }
+            return null;
+        }
+
+        if ((t == LexToken.Type.SUM || t == LexToken.Type.SUB) && f.hijos.size() == 2) {
+            NodoAST d1 = derivadaSimple(f.hijos.get(0), v);
+            NodoAST d2 = derivadaSimple(f.hijos.get(1), v);
+            if (d1 == null || d2 == null) return null;
+            return AstUtils.bin(t, d1, d2, f.token.value, f.token.prioridad);
+        }
+
+        return null;
+    }
+
+    public static boolean equalsSymja(NodoAST a, NodoAST b) {
+        String sa = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toSymja(a);
+        String sb = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toSymja(b);
+        return sa != null && sb != null && sa.equals(sb);
+    }
+
+    public static NodoAST replaceAllEqualByVar(NodoAST n, NodoAST target, String varName) {
+        if (n == null) return null;
+        if (equalsSymja(n, target)) return com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.atom(LexToken.Type.VARIABLE, varName, 1);
+        NodoAST c = new NodoAST(n.token == null ? null : new LexToken(n.token.type, n.token.value, n.token.prioridad));
+        for (NodoAST h : n.hijos) {
+            NodoAST ch = replaceAllEqualByVar(h, target, varName);
+            if (ch != null) {
+                c.hijos.add(ch);
+                ch.parent = c;
+            }
+        }
+        return c;
+    }
+
+    public static boolean onlyVar(NodoAST n, String varName) {
+        java.util.HashSet<String> s = new java.util.HashSet<>();
+        com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.collectVars(n, s);
+        if (s.isEmpty()) return true;
+        if (s.size() == 1 && s.contains(varName)) return true;
+        return false;
     }
 
     public static NodoAST reemplazarSubexp(NodoAST raiz, NodoAST objetivo, NodoAST con) {

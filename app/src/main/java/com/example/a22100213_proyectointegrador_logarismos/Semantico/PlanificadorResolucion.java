@@ -331,80 +331,41 @@ public class PlanificadorResolucion {
 
         String var = varIntegracion(n, definida);
         NodoAST cuerpo = extraerCuerpoIntegral(n, definida);
-
-        if (esExpDeLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
-
-        if (esSinDeExpLineal(cuerpo, var)) return MetodoResolucion.INTEGRAL_SUSTITUCION;
-
-        if ((esSinDeLineal(cuerpo, var) || esCosDeLineal(cuerpo, var) || esTanDeLineal(cuerpo, var))
-                && !esProductoDeDosFactores(cuerpo)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
-
-        if (esReciprocoDeLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
-
-        if (esSoloLn(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
-
-
         if (cuerpo == null) return MetodoResolucion.NINGUNO;
 
-        if (esExpDeLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
+        if (esExpDeLineal(cuerpo, var))                     return MetodoResolucion.INTEGRAL_SUSTITUCION;
+        if (esSinDeExpLineal(cuerpo, var))                  return MetodoResolucion.INTEGRAL_SUSTITUCION;
+        if ((esSinDeLineal(cuerpo, var) || esCosDeLineal(cuerpo, var) || esTanDeLineal(cuerpo, var))
+                && !esProductoDeDosFactores(cuerpo))        return MetodoResolucion.INTEGRAL_SUSTITUCION;
+        if (esReciprocoDeLineal(cuerpo, var))               return MetodoResolucion.INTEGRAL_SUSTITUCION;
 
-        if (esProductoMonomioPorExpLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
+        if (esCadenaPotenciaConFactor(cuerpo, var))         return MetodoResolucion.INTEGRAL_SUSTITUCION;
 
-        if (esProductoMonomioPorSinLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
+        if (esRacionalCadenaPotencia(cuerpo, var))          return MetodoResolucion.INTEGRAL_SUSTITUCION;
 
-        if (esProductoMonomioPorCosLineal(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
+        if (existeSustitucionSimple(cuerpo, var))           return MetodoResolucion.INTEGRAL_SUSTITUCION;
 
-        if (esLnPorMonomio(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
+        if (esSoloLn(cuerpo, var))                          return MetodoResolucion.INTEGRAL_POR_PARTES;
+        if (esProductoMonomioPorExpLineal(cuerpo, var))     return MetodoResolucion.INTEGRAL_POR_PARTES;
+        if (esProductoMonomioPorSinLineal(cuerpo, var))     return MetodoResolucion.INTEGRAL_POR_PARTES;
+        if (esProductoMonomioPorCosLineal(cuerpo, var))     return MetodoResolucion.INTEGRAL_POR_PARTES;
+        if (esLnPorMonomio(cuerpo, var))                    return MetodoResolucion.INTEGRAL_POR_PARTES;
+        if (esCicloExpTrig(cuerpo, var))                     return MetodoResolucion.INTEGRAL_POR_PARTES;
 
-        if (esCicloExpTrig(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
-
-        if (esMonomioAxnRespecto(cuerpo, var) && !esExponenteMenosUno(cuerpo, var)) {
+        if (esMonomioAxnRespecto(cuerpo, var) && !esExponenteMenosUno(cuerpo, var))
             return MetodoResolucion.INTEGRAL_REGLA_POTENCIA;
-        }
 
-        if (esProductoDeDosFactores(cuerpo) && prioridadLIATE(cuerpo) != 0) {
+        if (esProductoDeDosFactores(cuerpo) && prioridadLIATE(cuerpo) != 0)
             return MetodoResolucion.INTEGRAL_POR_PARTES;
-        }
 
-        if (contieneRadical(cuerpo) && esPatronTrigSub(cuerpo, var)) {
+        if (contieneRadical(cuerpo) && esPatronTrigSub(cuerpo, var))
             return MetodoResolucion.INTEGRAL_TRIGONOMETRICA;
-        }
 
-        if (esFraccionRacionalPolinomialProper(cuerpo, var)) {
+        if (esFraccionRacionalPolinomialProper(cuerpo, var))
             return MetodoResolucion.INTEGRAL_RACIONAL_PFD;
-        }
-
-        if (existeSustitucionSimple(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
-
-        if (esCadenaPotenciaConFactor(cuerpo, var)) {
-            return MetodoResolucion.INTEGRAL_SUSTITUCION;
-        }
 
         return MetodoResolucion.NINGUNO;
     }
-
 
     private static MetodoResolucion metodoAritmetica(NodoAST raiz) {
         if (contieneImaginarios(raiz)) return MetodoResolucion.ALGEBRA_COMPLEJOS;
@@ -413,7 +374,7 @@ public class PlanificadorResolucion {
     }
 
     private static MetodoResolucion metodoAlgebra(NodoAST raiz) {
-        // Nota: el caso “solo expresión” ya se intercepta arriba con esSoloExpresionSinObjetivo(...)
+
         if (contieneTrig(raiz) || contieneLog(raiz)) return MetodoResolucion.IDENTIDADES_TRIG;
         if (tieneExponenteFracONeg(raiz)) return MetodoResolucion.POTENCIAS;
         return MetodoResolucion.NEWTON_RAPHSON;
@@ -665,6 +626,33 @@ public class PlanificadorResolucion {
             return (e != null && Math.abs(e - 2.0) < 1e-9) && esConstanteRespecto(n.hijos.get(0), var);
         }
         return false;
+    }
+
+    private static boolean esRacionalCadenaPotencia(NodoAST n, String var) {
+        if (n == null || n.token == null || n.token.type != LexToken.Type.DIV || n.hijos.size() != 2)
+            return false;
+
+        NodoAST num = n.hijos.get(0);
+        NodoAST den = n.hijos.get(1);
+        if (den == null || den.token == null) return false;
+
+        if (den.token.type != LexToken.Type.SUM && den.token.type != LexToken.Type.SUB) return false;
+        if (den.hijos.size() != 2) return false;
+
+        NodoAST A = den.hijos.get(0);
+        NodoAST B = den.hijos.get(1);
+
+        NodoAST constTerm = esConstanteRespecto(A, var) ? A : (esConstanteRespecto(B, var) ? B : null);
+        NodoAST monoTerm  = constTerm == A ? B : (constTerm == B ? A : null);
+        if (constTerm == null || monoTerm == null) return false;
+
+        if (!esMonomioAxnRespecto(monoTerm, var)) return false;
+        int p = gradoEn(monoTerm, var);
+        if (p < 2) return false;
+
+        if (!esMonomioAxnRespecto(num, var)) return false;
+        int gNum = gradoEn(num, var);
+        return gNum == p - 1;
     }
 
     private static boolean esPatronTrigSub(NodoAST n, String var) {

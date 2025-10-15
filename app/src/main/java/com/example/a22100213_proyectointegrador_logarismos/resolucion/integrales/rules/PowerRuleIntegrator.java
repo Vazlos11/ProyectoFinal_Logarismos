@@ -6,61 +6,93 @@ import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSe
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
-import com.example.a22100213_proyectointegrador_logarismos.resolucion.SymjaBridge;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegralUtils;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegratorRule;
 
-public class PowerRuleIntegrator implements IntegratorRule {
+public final class PowerRuleIntegrator implements IntegratorRule {
     private final boolean definida;
 
-    public PowerRuleIntegrator(boolean definida) { this.definida = definida; }
+    public PowerRuleIntegrator(boolean definida) {
+        this.definida = definida;
+    }
 
     @Override
     public ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs) {
         IntegralUtils.IntegralInfo ii = IntegralUtils.localizarIntegral(raiz, definida);
-        if (ii == null || ii.cuerpo == null) return null;
+        if (ii == null || ii.cuerpo == null || ii.var == null) return null;
+        String x = ii.var;
 
-        ResultadoResolucion rr = new ResultadoResolucion();
+        IntegralUtils.MulSplit ms = IntegralUtils.splitMul(ii.cuerpo);
+        if (ms == null) return null;
+        double a = ms.c;
 
-        if (!definida) {
-            NodoAST F = IntegralUtils.integralRec(ii.cuerpo, ii.var);
-            if (F != null) {
-                NodoAST C = AstUtils.atom(LexToken.Type.VARIABLE, "C", 1);
-                NodoAST suma = AstUtils.bin(LexToken.Type.SUM, F, C, "+", 5);
-                NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, suma, ii.padre, suma);
-                rr.resultado = nuevo;
-                rr.latexFinal = AstUtils.toTeX(nuevo);
-                rr.pasos.add(new PasoResolucion("\\int " + AstUtils.toTeX(ii.cuerpo) + "\\,d" + ii.var + " = " + rr.latexFinal));
-                return rr;
+        if (ms.nonconst.isEmpty()) {
+            NodoAST F = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(a), AstUtils.atom(LexToken.Type.VARIABLE, x, 1), "*", 6);
+            NodoAST out = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
+            NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(out), ii.padre, out);
+
+            ResultadoResolucion rr = new ResultadoResolucion();
+            rr.resultado = nuevo;
+            rr.latexFinal = AstUtils.toTeX(nuevo);
+            rr.pasos.add(new PasoResolucion(definida ? "\\int a\\,x^{0}\\,dx= a\\,x" : "\\int a\\,x^{0}\\,dx= a\\,x + C"));
+            if (definida) {
+                NodoAST Fb = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, AstUtils.cloneTree(ii.sup));
+                NodoAST Fa = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, AstUtils.cloneTree(ii.inf));
+                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(Fb)));
+                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(Fa)));
+                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(out)));
             }
-            String s = AstUtils.toSymja(ii.cuerpo);
-            String r = s == null ? "" : "Integrate[" + s + "," + ii.var + "]";
-            rr.resultado = raiz;
-            rr.latexFinal = SymjaBridge.toTeX(r);
-            rr.pasos.add(new PasoResolucion("\\Rightarrow " + rr.latexFinal));
-            return rr;
-        } else {
-            NodoAST F = IntegralUtils.integralRec(ii.cuerpo, ii.var);
-            if (F != null) {
-                String Fsym = AstUtils.toSymja(F);
-                String a = AstUtils.toSymja(ii.inf);
-                String b = AstUtils.toSymja(ii.sup);
-                if (Fsym != null && a != null && b != null) {
-                    String exSym = "(ReplaceAll[" + Fsym + "," + ii.var + "->(" + b + ")]) - (ReplaceAll[" + Fsym + "," + ii.var + "->(" + a + ")])";
-                    rr.resultado = raiz;
-                    rr.latexFinal = SymjaBridge.toTeX(exSym);
-                    rr.pasos.add(new PasoResolucion("F(" + b + ")-F(" + a + ") = " + rr.latexFinal));
-                    return rr;
-                }
-            }
-            String s = AstUtils.toSymja(ii.cuerpo);
-            String a = AstUtils.toSymja(ii.inf);
-            String b = AstUtils.toSymja(ii.sup);
-            String r = s == null ? "" : "Integrate[" + s + ",{" + ii.var + "," + (a == null ? "a" : a) + "," + (b == null ? "b" : b) + "}]";
-            rr.resultado = raiz;
-            rr.latexFinal = SymjaBridge.toTeX(r);
-            rr.pasos.add(new PasoResolucion("\\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
             return rr;
         }
+
+        if (ms.nonconst.size() != 1) return null;
+        NodoAST t = ms.nonconst.get(0);
+
+        Double n = null;
+        if (t.token != null && t.token.type == LexToken.Type.VARIABLE && x.equals(t.token.value)) {
+            n = 1.0;
+        } else if (t.token != null && t.token.type == LexToken.Type.EXP && t.hijos.size() == 2) {
+            if (t.hijos.get(0) != null && t.hijos.get(0).token != null
+                    && t.hijos.get(0).token.type == LexToken.Type.VARIABLE
+                    && x.equals(t.hijos.get(0).token.value)) {
+                Double e = AstUtils.evalConst(t.hijos.get(1));
+                if (e != null) n = e;
+            }
+        } else return null;
+
+        NodoAST F;
+        if (Math.abs(n + 1.0) < 1e-15) {
+            NodoAST vx = AstUtils.atom(LexToken.Type.VARIABLE, x, 1);
+            NodoAST ln = IntegralUtils.lnClone(vx);
+            F = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(a), ln, "*", 6);
+        } else {
+            double coef = a / (n + 1.0);
+            double expNext = n + 1.0;
+            NodoAST vx = AstUtils.atom(LexToken.Type.VARIABLE, x, 1);
+            NodoAST xPow = AstUtils.bin(LexToken.Type.EXP, vx, AstUtils.number(expNext), "^", 7);
+            F = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), xPow, "*", 6);
+        }
+
+        NodoAST out = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
+        NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(out), ii.padre, out);
+
+        ResultadoResolucion rr = new ResultadoResolucion();
+        rr.resultado = nuevo;
+        rr.latexFinal = AstUtils.toTeX(nuevo);
+        if (Math.abs(n + 1.0) < 1e-15) {
+            rr.pasos.add(new PasoResolucion(definida ? "\\int a\\,x^{-1}\\,dx= a\\,\\ln|x|" : "\\int a\\,x^{-1}\\,dx= a\\,\\ln|x| + C"));
+        } else {
+            rr.pasos.add(new PasoResolucion(definida ? "\\int a\\,x^{n}\\,dx= \\frac{a}{n+1}x^{n+1}" : "\\int a\\,x^{n}\\,dx= \\frac{a}{n+1}x^{n+1}+C"));
+        }
+        if (definida) {
+            NodoAST Fb = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, AstUtils.cloneTree(ii.sup));
+            NodoAST Fa = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, AstUtils.cloneTree(ii.inf));
+            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(Fb)));
+            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(Fa)));
+            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(out)));
+        }
+        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        return rr;
     }
 }

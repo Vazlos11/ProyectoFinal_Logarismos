@@ -10,6 +10,9 @@ import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoR
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegralUtils;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegratorRule;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class ByPartsExpPolyIntegrator implements IntegratorRule {
     private final boolean definida;
 
@@ -26,109 +29,118 @@ public final class ByPartsExpPolyIntegrator implements IntegratorRule {
         IntegralUtils.MonoExpLin mel = matchMonomialTimesExpLinear(ii.cuerpo, x);
         if (mel != null && Math.abs(mel.k) > 1e-15) {
             NodoAST F = integrarReduccionExpIter(mel.n, mel.coef, mel.u, mel.k, x);
-            NodoAST repl = definida ? evalDefinida(F, x, ii.inf, ii.sup) : addC(F);
+            NodoAST repl = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
             NodoAST safe = AstUtils.cloneTree(repl);
             NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, safe, ii.padre, safe);
             ResultadoResolucion rr = new ResultadoResolucion();
             rr.resultado = nuevo;
             rr.latexFinal = AstUtils.toTeX(nuevo);
-            rr.pasos.add(new PasoResolucion("\\text{Integración por partes} \\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
             return rr;
         }
 
         IntegralUtils.MonoTrigLin msl = matchMonomialTimesSinLinear(ii.cuerpo, x);
         if (msl != null && Math.abs(msl.k) > 1e-15) {
             NodoAST F = integrarReduccionSin(msl.n, msl.coef, msl.u, msl.k, x);
-            NodoAST repl = definida ? evalDefinida(F, x, ii.inf, ii.sup) : addC(F);
+            NodoAST repl = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
             NodoAST safe = AstUtils.cloneTree(repl);
             NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, safe, ii.padre, safe);
             ResultadoResolucion rr = new ResultadoResolucion();
             rr.resultado = nuevo;
             rr.latexFinal = AstUtils.toTeX(nuevo);
-            rr.pasos.add(new PasoResolucion("\\text{Integración por partes} \\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
             return rr;
         }
 
         IntegralUtils.MonoTrigLin mcl = matchMonomialTimesCosLinear(ii.cuerpo, x);
         if (mcl != null && Math.abs(mcl.k) > 1e-15) {
             NodoAST F = integrarReduccionCos(mcl.n, mcl.coef, mcl.u, mcl.k, x);
-            NodoAST repl = definida ? evalDefinida(F, x, ii.inf, ii.sup) : addC(F);
+            NodoAST repl = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
             NodoAST safe = AstUtils.cloneTree(repl);
             NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, safe, ii.padre, safe);
             ResultadoResolucion rr = new ResultadoResolucion();
             rr.resultado = nuevo;
             rr.latexFinal = AstUtils.toTeX(nuevo);
-            rr.pasos.add(new PasoResolucion("\\text{Integración por partes} \\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
             return rr;
         }
 
         if (IntegralUtils.esCicloExpTrig(ii.cuerpo, x)) {
             NodoAST F = IntegralUtils.resolverCicloExpTrig(ii.cuerpo, x);
-            NodoAST repl = definida ? evalDefinida(F, x, ii.inf, ii.sup) : addC(F);
+            NodoAST repl = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
             NodoAST safe = AstUtils.cloneTree(repl);
             NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, safe, ii.padre, safe);
             ResultadoResolucion rr = new ResultadoResolucion();
             rr.resultado = nuevo;
             rr.latexFinal = AstUtils.toTeX(nuevo);
-            rr.pasos.add(new PasoResolucion("\\text{Integración por partes} \\Rightarrow " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
             return rr;
         }
 
         if (IntegralUtils.esLnPorMonomio(ii.cuerpo, x)) {
             NodoAST F = IntegralUtils.integrarLnPorMonomio(ii.cuerpo, x);
             if (F != null) {
-                NodoAST repl = definida ? evalDefinida(F, x, ii.inf, ii.sup) : addC(F);
+                NodoAST repl = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
                 NodoAST safe = AstUtils.cloneTree(repl);
                 NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, safe, ii.padre, safe);
                 ResultadoResolucion rr = new ResultadoResolucion();
                 rr.resultado = nuevo;
                 rr.latexFinal = AstUtils.toTeX(nuevo);
-                rr.pasos.add(new PasoResolucion("\\text{Integración por partes} \\Rightarrow " + rr.latexFinal));
+                rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+                rr.pasos.add(new PasoResolucion(rr.latexFinal));
                 return rr;
             }
         }
 
-        return null;
+        ResultadoResolucion gen = aplicarPartesGeneral(ii, raiz);
+        return gen;
     }
 
-    private NodoAST addC(NodoAST F) {
-        NodoAST C = AstUtils.atom(LexToken.Type.VARIABLE, "C", 1);
-        return AstUtils.bin(LexToken.Type.SUM, F, C, "+", 5);
-    }
+    private ResultadoResolucion aplicarPartesGeneral(IntegralUtils.IntegralInfo ii, NodoAST raiz) {
+        String x = ii.var;
+        IntegralUtils.MulSplit ms = IntegralUtils.splitMul(ii.cuerpo);
+        if (ms == null || ms.nonconst.size() < 2) return null;
 
-    private NodoAST evalDefinida(NodoAST F, String var, NodoAST a, NodoAST b) {
-        if (F == null || a == null || b == null) return null;
-        NodoAST Fb = sustituirVar(F, var, AstUtils.cloneTree(b));
-        NodoAST Fa = sustituirVar(F, var, AstUtils.cloneTree(a));
-        return AstUtils.bin(LexToken.Type.SUB, Fb, Fa, "-", 5);
-    }
-
-    private NodoAST sustituirVar(NodoAST n, String var, NodoAST con) {
-        if (n == null) return null;
-        if (n.token != null && n.token.type == LexToken.Type.VARIABLE && var.equals(n.token.value) && n.hijos.isEmpty()) {
-            return AstUtils.cloneTree(con);
+        List<NodoAST> fs = new ArrayList<>(ms.nonconst);
+        int idxU = -1, best = 1000;
+        for (int i = 0; i < fs.size(); i++) {
+            int p = IntegralUtils.prioridadILATE(fs.get(i), x);
+            if (p < best) { best = p; idxU = i; }
         }
-        NodoAST c = new NodoAST(n.token == null ? null : new LexToken(n.token.type, n.token.value, n.token.prioridad));
-        for (NodoAST h : n.hijos) {
-            NodoAST ch = sustituirVar(h, var, con);
-            if (ch != null) {
-                c.hijos.add(ch);
-                ch.parent = c;
-            }
-        }
-        return c;
-    }
+        if (idxU < 0) return null;
 
-    private IntegralUtils.MonoExpLin matchMonomialTimesExpLinear(NodoAST n, String v) {
-        Acc acc = IntegralUtils.collectForParts(n, v);
-        if (acc == null || !acc.ok || acc.countExpLin != 1) return null;
-        IntegralUtils.MonoExpLin out = new IntegralUtils.MonoExpLin();
-        out.n = acc.deg;
-        out.coef = acc.constCoef;
-        out.u = acc.uExp;
-        Double k = IntegralUtils.linearCoeff(acc.uExp, v);
-        out.k = (k == null) ? 0.0 : k;
-        return out;
+        NodoAST u = fs.get(idxU);
+        List<NodoAST> rest = new ArrayList<>();
+        for (int i = 0; i < fs.size(); i++) if (i != idxU) rest.add(fs.get(i));
+        NodoAST dvBody = IntegralUtils.rebuildMul(rest);
+        if (Math.abs(ms.c - 1.0) > 1e-15) dvBody = IntegralUtils.mulC(dvBody, ms.c);
+
+        NodoAST v = IntegralUtils.integralRec(dvBody, x);
+        if (v == null) return null;
+
+        NodoAST du = IntegralUtils.derivadaSimple(u, x);
+        if (du == null) return null;
+
+        NodoAST uv = AstUtils.bin(LexToken.Type.MUL, AstUtils.cloneTree(u), AstUtils.cloneTree(v), "*", 6);
+        NodoAST vdu = AstUtils.bin(LexToken.Type.MUL, AstUtils.cloneTree(v), du, "*", 6);
+
+        NodoAST integralRestante = ii.definida
+                ? IntegralUtils.integralDef(ii.inf, ii.sup, vdu, x)
+                : IntegralUtils.integralIndef(vdu, x);
+
+        NodoAST expr = AstUtils.bin(LexToken.Type.SUB, uv, integralRestante, "-", 5);
+
+        NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, expr, ii.padre, expr);
+        ResultadoResolucion rr = new ResultadoResolucion();
+        rr.resultado = nuevo;
+        rr.latexFinal = AstUtils.toTeX(nuevo);
+        rr.pasos.add(new PasoResolucion("\\int u\\,dv=uv-\\int v\\,du"));
+        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        return rr;
     }
 
     private IntegralUtils.MonoTrigLin matchMonomialTimesSinLinear(NodoAST n, String v) {
@@ -155,61 +167,69 @@ public final class ByPartsExpPolyIntegrator implements IntegratorRule {
         return out;
     }
 
-    private NodoAST integrarReduccionExpIter(int n, double c, NodoAST u, double k, String v) {
-        if (Math.abs(k) < 1e-15) return null;
-        NodoAST acc = AstUtils.number(0.0);
-        int m = n;
-        double coefFront = c / k;
-        while (m >= 0) {
-            NodoAST xm = IntegralUtils.xPow(v, m);
-            NodoAST epu = IntegralUtils.ePowClone(u);
-            NodoAST term = AstUtils.bin(LexToken.Type.MUL, xm, epu, "*", 6);
-            double sign = ((n - m) % 2 == 0) ? 1.0 : -1.0;
-            double mult = coefFront * combFactor(n, m) / Math.pow(k, n - m);
-            term = IntegralUtils.mulC(term, sign * mult);
-            acc = IntegralUtils.sum(acc, term);
-            m--;
-        }
-        return acc;
+    private IntegralUtils.MonoExpLin matchMonomialTimesExpLinear(NodoAST n, String v) {
+        Acc acc = IntegralUtils.collectForParts(n, v);
+        if (acc == null || !acc.ok || acc.countExpLin != 1 || acc.countSinLin != 0 || acc.countCosLin != 0) return null;
+        IntegralUtils.MonoExpLin out = new IntegralUtils.MonoExpLin();
+        out.n = acc.deg;
+        out.coef = acc.constCoef;
+        out.u = acc.uExp;
+        Double k = IntegralUtils.linearCoeff(acc.uExp, v);
+        out.k = (k == null) ? 0.0 : k;
+        return out;
     }
 
-    private double combFactor(int n, int m) {
-        double num = 1.0;
-        for (int i = m + 1; i <= n; i++) num *= i;
-        return num;
+    private NodoAST integrarReduccionExpIter(int n, double c, NodoAST u, double k, String v) {
+        NodoAST sum = null;
+        for (int i = n; i >= 0; i--) {
+            double coef = c * IntegralUtils.fallingFactorial(n, n - i) / Math.pow(k, n - i + 1);
+            NodoAST term = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), AstUtils.bin(LexToken.Type.MUL, IntegralUtils.xPow(v, i), IntegralUtils.ePowClone(u), "*", 6), "*", 6);
+            sum = (sum == null) ? term : AstUtils.bin(LexToken.Type.SUM, sum, term, "+", 5);
+        }
+        return sum;
     }
 
     private NodoAST integrarReduccionSin(int n, double c, NodoAST u, double k, String v) {
-        if (Math.abs(k) < 1e-15) return null;
-        NodoAST acc = AstUtils.number(0.0);
-        int m = n;
-        while (m >= 0) {
-            NodoAST xm = IntegralUtils.xPow(v, m);
-            NodoAST trig = ((n - m) % 2 == 0) ? IntegralUtils.cosClone(u) : IntegralUtils.sinClone(u);
-            double sign = ((n - m) % 4 == 0) ? -1.0 : ((n - m) % 4 == 1) ? 1.0 : ((n - m) % 4 == 2) ? 1.0 : -1.0;
-            NodoAST term = AstUtils.bin(LexToken.Type.MUL, xm, trig, "*", 6);
-            double mult = c * combFactor(n, m) * sign / Math.pow(k, n - m + 1);
-            term = IntegralUtils.mulC(term, mult);
-            acc = IntegralUtils.sum(acc, term);
-            m--;
+        if (n % 2 == 0) {
+            int m = n / 2;
+            NodoAST sum = null;
+            for (int j = 0; j <= m; j++) {
+                double coef = c * IntegralUtils.binom(n, 2 * j) * Math.pow(-1, j) / Math.pow(k, 2 * j + 1);
+                NodoAST term = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), AstUtils.bin(LexToken.Type.MUL, IntegralUtils.xPow(v, n - 2 * j), IntegralUtils.cosClone(u), "*", 6), "*", 6);
+                sum = (sum == null) ? term : AstUtils.bin(LexToken.Type.SUM, sum, term, "+", 5);
+            }
+            return sum;
+        } else {
+            int m = (n - 1) / 2;
+            NodoAST sum = null;
+            for (int j = 0; j <= m; j++) {
+                double coef = c * IntegralUtils.binom(n, 2 * j + 1) * Math.pow(-1, j) / Math.pow(k, 2 * j + 2);
+                NodoAST term = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), AstUtils.bin(LexToken.Type.MUL, IntegralUtils.xPow(v, n - 2 * j - 1), IntegralUtils.sinClone(u), "*", 6), "*", 6);
+                sum = (sum == null) ? term : AstUtils.bin(LexToken.Type.SUM, sum, term, "+", 5);
+            }
+            return sum;
         }
-        return acc;
     }
 
     private NodoAST integrarReduccionCos(int n, double c, NodoAST u, double k, String v) {
-        if (Math.abs(k) < 1e-15) return null;
-        NodoAST acc = AstUtils.number(0.0);
-        int m = n;
-        while (m >= 0) {
-            NodoAST xm = IntegralUtils.xPow(v, m);
-            NodoAST trig = ((n - m) % 2 == 0) ? IntegralUtils.sinClone(u) : IntegralUtils.cosClone(u);
-            double sign = ((n - m) % 4 == 0) ? 1.0 : ((n - m) % 4 == 1) ? 1.0 : ((n - m) % 4 == 2) ? -1.0 : -1.0;
-            NodoAST term = AstUtils.bin(LexToken.Type.MUL, xm, trig, "*", 6);
-            double mult = c * combFactor(n, m) * sign / Math.pow(k, n - m + 1);
-            term = IntegralUtils.mulC(term, mult);
-            acc = IntegralUtils.sum(acc, term);
-            m--;
+        if (n % 2 == 0) {
+            int m = n / 2;
+            NodoAST sum = null;
+            for (int j = 0; j <= m; j++) {
+                double coef = c * IntegralUtils.binom(n, 2 * j) * Math.pow(-1, j) / Math.pow(k, 2 * j + 2);
+                NodoAST term = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), AstUtils.bin(LexToken.Type.MUL, IntegralUtils.xPow(v, n - 2 * j), IntegralUtils.sinClone(u), "*", 6), "*", 6);
+                sum = (sum == null) ? term : AstUtils.bin(LexToken.Type.SUM, sum, term, "+", 5);
+            }
+            return sum;
+        } else {
+            int m = (n - 1) / 2;
+            NodoAST sum = null;
+            for (int j = 0; j <= m; j++) {
+                double coef = c * IntegralUtils.binom(n, 2 * j + 1) * Math.pow(-1, j) / Math.pow(k, 2 * j + 1);
+                NodoAST term = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(coef), AstUtils.bin(LexToken.Type.MUL, IntegralUtils.xPow(v, n - 2 * j - 1), IntegralUtils.cosClone(u), "*", 6), "*", 6);
+                sum = (sum == null) ? term : AstUtils.bin(LexToken.Type.SUM, sum, term, "+", 5);
+            }
+            return sum;
         }
-        return acc;
     }
 }

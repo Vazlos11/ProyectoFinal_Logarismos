@@ -209,8 +209,35 @@ public class AnalisisLexico {
 
             case "\\int_def":
                 emit(out, LexToken.Type.INTEGRAL_DEF, "∫");
-                for (Token child : t.children) lexFromToken(child, out);
+
+                emit(out, LexToken.Type.PAREN_OPEN, "(");
+                if (t.children.size() > 0 && t.children.get(0) != null) {
+                    lexFromToken(t.children.get(0), out);
+                }
+                emit(out, LexToken.Type.PAREN_CLOSE, ")");
+
+                emit(out, LexToken.Type.PAREN_OPEN, "(");
+                if (t.children.size() > 1 && t.children.get(1) != null) {
+                    lexFromToken(t.children.get(1), out);
+                }
+                emit(out, LexToken.Type.PAREN_CLOSE, ")");
+
+                emit(out, LexToken.Type.PAREN_OPEN, "(");
+                if (t.children.size() > 2 && t.children.get(2) != null) {
+                    Token body = t.children.get(2);
+                    if (body.isContainer && "()".equals(body.value)) {
+                        lexFromList(body.children, out);
+                    } else {
+                        lexFromToken(body, out);
+                    }
+                }
+                emit(out, LexToken.Type.PAREN_CLOSE, ")");
+
+                if (t.children.size() > 3 && t.children.get(3) != null) {
+                    lexFromToken(t.children.get(3), out);
+                }
                 break;
+
 
             case "\\int":
                 emit(out, LexToken.Type.INTEGRAL_INDEF, "∫");
@@ -342,6 +369,10 @@ public class AnalisisLexico {
             return;
         }
 
+        if (vs.length() == 2 && vs.charAt(0) == 'd' && Character.isLetter(vs.charAt(1))) {
+            emit(out, LexToken.Type.DIFFERENTIAL, vs);
+            return;
+        }
         if (vs.matches("\\d+"))        { emit(out, LexToken.Type.INTEGER, vs); return; }
         if (vs.matches("\\d+\\.\\d+")) { emit(out, LexToken.Type.DECIMAL, vs); return; }
 
@@ -384,17 +415,50 @@ public class AnalisisLexico {
     private static List<LexToken> insertImplicitMultiplication(List<LexToken> in) {
         if (in == null || in.isEmpty()) return in;
         List<LexToken> r = new ArrayList<>();
+
+        boolean inIntDef = false;
+        int groupDepth = 0;
+        int groupsClosed = 0;
+
         for (int i = 0; i < in.size(); i++) {
             LexToken a = in.get(i);
             r.add(a);
+
+            if (a.type == LexToken.Type.INTEGRAL_DEF) {
+                inIntDef = true;
+                groupDepth = 0;
+                groupsClosed = 0;
+            } else if (inIntDef) {
+                if (a.type == LexToken.Type.PAREN_OPEN) {
+                    groupDepth++;
+                } else if (a.type == LexToken.Type.PAREN_CLOSE) {
+                    if (groupDepth > 0) groupDepth--;
+                    if (groupDepth == 0 && groupsClosed < 3) {
+                        groupsClosed++;
+                        if (groupsClosed >= 3) inIntDef = false;
+                    }
+                } else if (a.type == LexToken.Type.DIFFERENTIAL) {
+                    inIntDef = false;
+                }
+            }
+
             if (i == in.size() - 1) break;
             LexToken b = in.get(i + 1);
+
             if (needsMulBetween(a, b)) {
-                r.add(new LexToken(LexToken.Type.MUL, "*", PREC.getOrDefault(LexToken.Type.MUL, 6)));
+                if (inIntDef
+                        && a.type == LexToken.Type.PAREN_CLOSE
+                        && b.type == LexToken.Type.PAREN_OPEN
+                        && groupDepth == 0
+                        && groupsClosed < 3) {
+                } else {
+                    r.add(new LexToken(LexToken.Type.MUL, "*", PREC.getOrDefault(LexToken.Type.MUL, 6)));
+                }
             }
         }
         return r;
     }
+
 
     private static boolean needsMulBetween(LexToken a, LexToken b) {
         if (a == null || b == null) return false;
