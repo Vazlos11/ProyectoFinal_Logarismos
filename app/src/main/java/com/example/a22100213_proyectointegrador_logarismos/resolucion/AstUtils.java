@@ -12,8 +12,6 @@ public class AstUtils {
 
     private static final ThreadLocal<java.util.IdentityHashMap<NodoAST, Boolean>> TEX_SEEN =
             ThreadLocal.withInitial(java.util.IdentityHashMap::new);
-    private static final ThreadLocal<java.util.IdentityHashMap<NodoAST, Boolean>> SYMJA_SEEN =
-            ThreadLocal.withInitial(java.util.IdentityHashMap::new);
 
     public static NodoAST atom(LexToken.Type t, String v, int p) {
         return new NodoAST(new LexToken(t, v, p));
@@ -227,6 +225,7 @@ public class AstUtils {
 
         return null;
     }
+
     public static String toTeX(NodoAST n) {
         return toTeX(n, 0);
     }
@@ -252,7 +251,24 @@ public class AstUtils {
             if (t == LexToken.Type.CONST_PI) return "\\pi";
             if (t == LexToken.Type.SUM) return toTeX(n.hijos.get(0), depth+1) + "+" + toTeX(n.hijos.get(1), depth+1);
             if (t == LexToken.Type.SUB) return toTeX(n.hijos.get(0), depth+1) + "-" + toTeX(n.hijos.get(1), depth+1);
-            if (t == LexToken.Type.MUL) return toTeX(n.hijos.get(0), depth+1) + "\\cdot " + toTeX(n.hijos.get(1), depth+1);
+            if (t == LexToken.Type.MUL) {
+                NodoAST L = n.hijos.get(0);
+                NodoAST R = n.hijos.get(1);
+
+                String ls = toTeX(L, depth+1);
+                String rs = toTeX(R, depth+1);
+
+                boolean lp = (L != null && L.token != null &&
+                        (L.token.type == LexToken.Type.SUM || L.token.type == LexToken.Type.SUB));
+                boolean rp = (R != null && R.token != null &&
+                        (R.token.type == LexToken.Type.SUM || R.token.type == LexToken.Type.SUB));
+
+                if (lp) ls = "\\left(" + ls + "\\right)";
+                if (rp) rs = "\\left(" + rs + "\\right)";
+
+                return ls + "\\cdot " + rs;
+            }
+
             if (t == LexToken.Type.DIV) return "\\frac{" + toTeX(n.hijos.get(0), depth+1) + "}{" + toTeX(n.hijos.get(1), depth+1) + "}";
             if (t == LexToken.Type.EXP) return "{" + toTeX(n.hijos.get(0), depth+1) + "}^{" + toTeX(n.hijos.get(1), depth+1) + "}";
             if (t == LexToken.Type.RADICAL) return "\\sqrt{" + toTeX(n.hijos.get(0), depth+1) + "}";
@@ -287,6 +303,17 @@ public class AstUtils {
                 }
                 return "\\int_{" + a + "}^{" + b + "} " + body + " \\\\, d" + dx;
             }
+            if (t == LexToken.Type.DERIV) {
+                String v = "x";
+                if (n.hijos.size() > 1 && n.hijos.get(1) != null && n.hijos.get(1).token != null && n.hijos.get(1).token.type == LexToken.Type.DIFFERENTIAL) {
+                    String dv = n.hijos.get(1).token.value;
+                    v = (dv != null && dv.length() >= 2) ? dv.substring(1) : "x";
+                } else if (n.token != null && n.token.value != null && !n.token.value.isEmpty()) {
+                    v = n.token.value;
+                }
+                return "\\frac{d}{d" + v + "}\\left(" + toTeX(n.hijos.get(0), depth+1) + "\\right)";
+            }
+            if (t == LexToken.Type.PRIME) return toTeX(n.hijos.get(0), depth+1) + "'";
             return "";
         } finally {
             if (n != null) {
@@ -335,63 +362,37 @@ public class AstUtils {
         if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.VARIABLE) return n.token.value;
         if (t == LexToken.Type.IMAGINARY) return "I";
         if (t == LexToken.Type.RADICAL) return "Sqrt[" + toSymja(n.hijos.get(0)) + "]";
-        if (t == LexToken.Type.DERIV) return "D[" + toSymja(n.hijos.get(0)) + ",x]";
-        return n.token.value;
-    }
-
-
-    private static String toSymja(NodoAST n, int depth) {
-        var seen = SYMJA_SEEN.get();
-        if (n != null && seen.containsKey(n)) return "Loop";
-        if (depth > MAX_SERIALIZE_DEPTH) return "Loop";
-        try {
-            if (n != null) seen.put(n, Boolean.TRUE);
-            if (n == null || n.token == null) return null;
-            LexToken.Type t = n.token.type;
-            if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) return n.token.value;
-            if (t == LexToken.Type.VARIABLE) return n.token.value == null ? "x" : n.token.value;
-            if (t == LexToken.Type.CONST_E) return "E";
-            if (t == LexToken.Type.CONST_PI) return "Pi";
-            if (t == LexToken.Type.SUM) return "(" + toSymja(n.hijos.get(0), depth+1) + "+" + toSymja(n.hijos.get(1), depth+1) + ")";
-            if (t == LexToken.Type.SUB) return "(" + toSymja(n.hijos.get(0), depth+1) + "-" + toSymja(n.hijos.get(1), depth+1) + ")";
-            if (t == LexToken.Type.MUL) return "(" + toSymja(n.hijos.get(0), depth+1) + "*" + toSymja(n.hijos.get(1), depth+1) + ")";
-            if (t == LexToken.Type.DIV) return "(" + toSymja(n.hijos.get(0), depth+1) + "/" + toSymja(n.hijos.get(1), depth+1) + ")";
-            if (t == LexToken.Type.EXP) return "(" + toSymja(n.hijos.get(0), depth+1) + ")^(" + toSymja(n.hijos.get(1), depth+1) + ")";
-            if (t == LexToken.Type.RADICAL) return "Sqrt[" + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.LN) return "Log[" + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.LOG_BASE10) return "Log[10," + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.LOG_BASE2) return "Log[2," + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.TRIG_SIN) return "Sin[" + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.TRIG_COS) return "Cos[" + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.TRIG_TAN) return "Tan[" + toSymja(n.hijos.get(0), depth+1) + "]";
-            if (t == LexToken.Type.EQUAL) return toSymja(n.hijos.get(0), depth+1) + "==" + toSymja(n.hijos.get(1), depth+1);
-            if (t == LexToken.Type.INTEGRAL_INDEF) {
-                String body = n.hijos.size() > 0 ? toSymja(n.hijos.get(0), depth+1) : "0";
-                String dx = "x";
-                if (n.hijos.size() > 1 && n.hijos.get(1) != null && n.hijos.get(1).token != null && n.hijos.get(1).token.value != null) {
-                    String s = n.hijos.get(1).token.value.trim();
-                    if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
-                }
-                return "Integrate[" + body + "," + dx + "]";
+        if (t == LexToken.Type.INTEGRAL_INDEF) {
+            String body = n.hijos.size() > 0 ? toSymja(n.hijos.get(0)) : "0";
+            String dx = "x";
+            if (n.hijos.size() > 1 && n.hijos.get(1) != null && n.hijos.get(1).token != null && n.hijos.get(1).token.value != null) {
+                String s = n.hijos.get(1).token.value.trim();
+                if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
             }
-            if (t == LexToken.Type.INTEGRAL_DEF) {
-                String a = n.hijos.size() > 0 ? toSymja(n.hijos.get(0), depth+1) : "0";
-                String b = n.hijos.size() > 1 ? toSymja(n.hijos.get(1), depth+1) : "1";
-                String body = n.hijos.size() > 2 ? toSymja(n.hijos.get(2), depth+1) : "0";
-                String dx = "x";
-                if (n.hijos.size() > 3 && n.hijos.get(3) != null && n.hijos.get(3).token != null && n.hijos.get(3).token.value != null) {
-                    String s = n.hijos.get(3).token.value.trim();
-                    if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
-                }
-                return "Integrate[" + body + ",{" + dx + "," + a + "," + b + "}]";
-            }
-            return null;
-        } finally {
-            if (n != null) {
-                seen.remove(n);
-                if (seen.isEmpty()) SYMJA_SEEN.remove();
-            }
+            return "Integrate[" + body + "," + dx + "]";
         }
+        if (t == LexToken.Type.INTEGRAL_DEF) {
+            String a = n.hijos.size() > 0 ? toSymja(n.hijos.get(0)) : "0";
+            String b = n.hijos.size() > 1 ? toSymja(n.hijos.get(1)) : "1";
+            String body = n.hijos.size() > 2 ? toSymja(n.hijos.get(2)) : "0";
+            String dx = "x";
+            if (n.hijos.size() > 3 && n.hijos.get(3) != null && n.hijos.get(3).token != null && n.hijos.get(3).token.value != null) {
+                String s = n.hijos.get(3).token.value.trim();
+                if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
+            }
+            return "Integrate[" + body + ",{" + dx + "," + a + "," + b + "}]";
+        }
+        if (t == LexToken.Type.DERIV) {
+            String v = "x";
+            if (n.hijos.size() > 1 && n.hijos.get(1) != null && n.hijos.get(1).token != null && n.hijos.get(1).token.type == LexToken.Type.DIFFERENTIAL) {
+                String dv = n.hijos.get(1).token.value;
+                if (dv != null && dv.length() >= 2 && (dv.charAt(0) == 'd' || dv.charAt(0) == 'D')) v = dv.substring(1);
+            } else if (n.token != null && n.token.value != null && !n.token.value.isEmpty()) {
+                v = n.token.value;
+            }
+            return "D[" + toSymja(n.hijos.get(0)) + "," + v + "]";
+        }
+        return n.token.value;
     }
 
     public static LexToken tok(LexToken.Type t, String v, int p) {

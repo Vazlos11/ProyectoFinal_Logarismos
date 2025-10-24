@@ -21,9 +21,10 @@ public class AnalisisSemantico {
             llenarSubtipos(rs, raiz);
             return rs;
         }
-        if (raiz.token.type == LexToken.Type.DERIV || raiz.token.type == LexToken.Type.PRIME) {
+        if (contiene(raiz, LexToken.Type.DERIV) || contiene(raiz, LexToken.Type.PRIME)) {
+            NodoAST d = localizarDeriv(raiz);
             rs.tipoPrincipal = TipoExpresion.T3_DERIVADA;
-            validarDerivada(rs, raiz);
+            validarDerivada(rs, d);
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
@@ -58,17 +59,26 @@ public class AnalisisSemantico {
             Set<String> vs = varsNoI(raiz);
             String v = vs.isEmpty() ? "x" : vs.iterator().next();
             int g = 0;
-            for (NodoAST e : ecuaciones(raiz)) g = Math.max(g, Math.max(gradoEn(sub(e,0), v), gradoEn(sub(e,1), v)));
+            boolean todasPoli = true;
+
+            for (NodoAST e : ecuaciones(raiz)) {
+                NodoAST L = sub(e, 0), R = sub(e, 1);
+                g = Math.max(g, Math.max(gradoEn(L, v), gradoEn(R, v)));
+                todasPoli &= esPolinomicaEn(L, v) && esPolinomicaEn(R, v);
+            }
+
             if (vs.size() == 1 && g == 1 && !contieneAlguno(raiz, tiposFunciones())) {
                 rs.tipoPrincipal = TipoExpresion.T6_DESPEJE_LINEAL;
                 validarLineal(rs, raiz);
-            } else if (vs.size() == 1 && g >= 2 && g < Integer.MAX_VALUE && esPolinomicaEn(raiz, v) && coefEnteros(raiz)) {
+            } else if (vs.size() == 1 && g >= 2 && g < Integer.MAX_VALUE && todasPoli && coefEnteros(raiz)) {
                 rs.tipoPrincipal = TipoExpresion.T7_DESPEJE_POLINOMICO;
                 validarPolinomico(rs, raiz);
             } else {
                 rs.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
                 validarT2(rs, raiz);
             }
+
+            validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
             return rs;
@@ -100,7 +110,15 @@ public class AnalisisSemantico {
         for (NodoAST h : n.hijos) if (contiene(h, t)) return true;
         return false;
     }
-
+    private static NodoAST localizarDeriv(NodoAST n) {
+        if (n == null) return null;
+        if (n.token != null && (n.token.type == LexToken.Type.DERIV || n.token.type == LexToken.Type.PRIME)) return n;
+        for (NodoAST h : n.hijos) {
+            NodoAST r = localizarDeriv(h);
+            if (r != null) return r;
+        }
+        return null;
+    }
     private static boolean contieneAlguno(NodoAST n, Set<LexToken.Type> set) {
         if (n == null) return false;
         if (n.token != null && set.contains(n.token.type)) return true;
@@ -290,12 +308,14 @@ public class AnalisisSemantico {
     private static void validarDerivada(ResultadoSemantico rs, NodoAST r) {
         NodoAST fun = sub(r,0);
         NodoAST dif = sub(r,1);
-        if (dif == null || dif.token == null || !dif.token.type.name().equals("DIFFERENTIAL")) {
-            rs.errores.add(SemanticoError.error("T3_DX", "Falta diferencial", ruta(r)));
-            return;
+        String v = "x";
+        if (dif != null && dif.token != null && dif.token.type == LexToken.Type.DIFFERENTIAL) {
+            String dv = dif.token.value == null ? "" : dif.token.value.trim();
+            v = (dv.length() >= 2 && (dv.charAt(0) == 'd' || dv.charAt(0) == 'D')) ? dv.substring(1) : "x";
+        } else if (r.token != null && r.token.type == LexToken.Type.DERIV && r.token.value != null && !r.token.value.isEmpty()) {
+            v = r.token.value;
         }
-        String v = extraerDxVar(dif.token.value);
-        Set<String> fv = varsNoI(fun);
+        java.util.Set<String> fv = varsNoI(fun);
         if (!fv.isEmpty() && !fv.contains(v)) rs.errores.add(SemanticoError.error("T3_VAR_DX", "Variable del diferencial no coincide", ruta(r)));
         rs.varIndep = v;
     }
@@ -518,6 +538,9 @@ public class AnalisisSemantico {
             if (Math.abs(r - e) > 1e-9 || e < 0) return false;
             return esPolinomicaEn(sub(n,0), var);
         }
+        if (t == LexToken.Type.EQUAL) {
+            return esPolinomicaEn(sub(n,0), var) && esPolinomicaEn(sub(n,1), var);
+        }
         if (t == LexToken.Type.DIV) {
             int gden = gradoEn(sub(n,1), var);
             if (gden != 0) return false;
@@ -540,6 +563,9 @@ public class AnalisisSemantico {
             double r = Math.rint(e);
             if (Math.abs(r - e) > 1e-9 || e < 0) return false;
             return esPolinomica(sub(n,0));
+        }
+        if (t == LexToken.Type.EQUAL) {
+            return esPolinomica(sub(n,0)) && esPolinomica(sub(n,1));
         }
         if (t == LexToken.Type.DIV || t == LexToken.Type.RADICAL) return false;
         if (t == LexToken.Type.LOG || t == LexToken.Type.LN || t == LexToken.Type.LOG_BASE2 || t == LexToken.Type.LOG_BASE10) return false;

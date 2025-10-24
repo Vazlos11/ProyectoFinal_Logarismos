@@ -495,6 +495,16 @@ public class MainActivity extends AppCompatActivity {
             updateView();
             return;
         }
+        if ("\\frac{d}{dx}".equals(latexEquivalent)) {
+            Token op = Token.atomic("\\frac{d}{dx}");
+            insertToken(op);
+            Token par = Token.container("()");
+            insertToken(par);
+            currentContainer = par;
+            cursorIndex = 0;
+            updateView();
+            return;
+        }
 
         if (ATOMIC_TOKENS.contains(latexEquivalent)) {
             newToken = Token.atomic(latexEquivalent);

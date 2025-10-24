@@ -1,7 +1,6 @@
 package com.example.a22100213_proyectointegrador_logarismos.resolucion.aritmetica;
 
 import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
-import com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
@@ -19,7 +18,7 @@ public class AritmeticaResolver implements Resolver {
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
         String before = AstUtils.toTeX(raiz);
-        String etiqueta = PlanificadorResolucion.plan(raiz, rs);
+        String etiqueta = "Evaluación directa";
         Double v = AstUtils.evalConst(raiz);
         if (v != null) {
             double w = (v == 0.0 ? 0.0 : v);

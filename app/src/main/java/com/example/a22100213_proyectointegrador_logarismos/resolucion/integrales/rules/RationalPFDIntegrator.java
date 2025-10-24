@@ -73,6 +73,7 @@ public final class RationalPFDIntegrator implements IntegratorRule {
         if (n == null || n.token == null || n.token.type != LexToken.Type.DIV || n.hijos.size() != 2) return null;
         NodoAST num = n.hijos.get(0);
         NodoAST den = n.hijos.get(1);
+
         Integer dn = degreePoly(den, v);
         Integer nn = degreePoly(num, v);
         if (dn == null || nn == null || nn >= dn) return null;
@@ -80,30 +81,46 @@ public final class RationalPFDIntegrator implements IntegratorRule {
         List<NodoAST> fs = IntegralUtils.flattenMul(den);
         double constDen = 1.0;
         List<Lin> factors = new ArrayList<>();
-        for (NodoAST f : fs) {
-            Double c = AstUtils.evalConst(f);
-            if (c != null) {
-                constDen *= c;
-                continue;
+
+        if (fs.size() > 1) {
+            for (NodoAST f : fs) {
+                Double c = AstUtils.evalConst(f);
+                if (c != null) {
+                    constDen *= c;
+                    continue;
+                }
+                Lin l = linearAB(f, v);
+                if (l == null) return null;
+                factors.add(l);
             }
-            Lin l = linearAB(f, v);
-            if (l == null) return null;
-            factors.add(l);
-        }
-        if (factors.isEmpty()) {
+        } else {
             Lin l = linearAB(den, v);
-            if (l == null) return null;
-            factors.add(l);
+            if (l != null) {
+                factors.add(l);
+            } else {
+                Quad q = quadCoeffs(den, v);
+                if (q == null) return null;
+                double D = q.b * q.b - 4.0 * q.a * q.c;
+                if (!(D > 1e-12)) return null;
+                double s = Math.sqrt(D);
+                double r1 = (-q.b + s) / (2.0 * q.a);
+                double r2 = (-q.b - s) / (2.0 * q.a);
+                Lin l1 = new Lin(); l1.a = 1.0; l1.b = -r1;
+                Lin l2 = new Lin(); l2.a = 1.0; l2.b = -r2;
+                factors.add(l1);
+                factors.add(l2);
+                constDen *= q.a;
+            }
         }
+
         for (int i = 0; i < factors.size(); i++) {
             for (int j = i + 1; j < factors.size(); j++) {
-                double a1 = factors.get(i).a, b1 = factors.get(i).b;
-                double a2 = factors.get(j).a, b2 = factors.get(j).b;
-                double r1 = -b1 / a1;
-                double r2 = -b2 / a2;
+                double r1 = -factors.get(i).b / factors.get(i).a;
+                double r2 = -factors.get(j).b / factors.get(j).a;
                 if (Math.abs(r1 - r2) < 1e-12) return null;
             }
         }
+
         Decomp d = new Decomp();
         d.num = num;
         d.den = factors;
@@ -171,6 +188,71 @@ public final class RationalPFDIntegrator implements IntegratorRule {
                 Integer db = degreePoly(base, v);
                 Integer de = degreePoly(ex, v);
                 if (db != null && db == 0 && de != null && de == 0) return 0;
+                return null;
+            }
+            default:
+                return null;
+        }
+    }
+
+    private static class Quad { double a, b, c; }
+    private static Quad quadCoeffs(NodoAST n, String v) {
+        double[] c = coeff012(n, v);
+        if (c == null) return null;
+        if (Math.abs(c[2]) < 1e-12) return null;
+        Quad q = new Quad();
+        q.a = c[2];
+        q.b = c[1];
+        q.c = c[0];
+        return q;
+    }
+
+    private static double[] coeff012(NodoAST n, String v) {
+        if (n == null || n.token == null) return null;
+        switch (n.token.type) {
+            case INTEGER:
+            case DECIMAL:
+            case CONST_E:
+            case CONST_PI: {
+                Double k = AstUtils.evalConst(n);
+                return (k == null) ? null : new double[]{k, 0.0, 0.0};
+            }
+            case VARIABLE:
+                if (v.equals(n.token.value) && n.hijos.isEmpty())
+                    return new double[]{0.0, 1.0, 0.0};
+                return new double[]{0.0, 0.0, 0.0};
+            case SUM:
+            case SUB: {
+                double[] A = coeff012(n.hijos.get(0), v);
+                double[] B = coeff012(n.hijos.get(1), v);
+                if (A == null || B == null) return null;
+                if (n.token.type == LexToken.Type.SUB) B = new double[]{-B[0], -B[1], -B[2]};
+                return new double[]{A[0] + B[0], A[1] + B[1], A[2] + B[2]};
+            }
+            case MUL: {
+                double[] A = coeff012(n.hijos.get(0), v);
+                double[] B = coeff012(n.hijos.get(1), v);
+                if (A == null || B == null) return null;
+                double c0 = A[0]*B[0];
+                double c1 = A[0]*B[1] + A[1]*B[0];
+                double c2 = A[0]*B[2] + A[1]*B[1] + A[2]*B[0];
+                return new double[]{c0, c1, c2};
+            }
+            case EXP: {
+                NodoAST base = n.hijos.get(0);
+                NodoAST ex   = n.hijos.get(1);
+                Double e = AstUtils.evalConst(ex);
+                if (e == null) return null;
+                int k = (int)Math.rint(e);
+                if (Math.abs(e - k) > 1e-12 || k < 0) return null;
+                if (base.token != null && base.token.type == LexToken.Type.VARIABLE && v.equals(base.token.value)) {
+                    if (k == 0) return new double[]{1.0,0.0,0.0};
+                    if (k == 1) return new double[]{0.0,1.0,0.0};
+                    if (k == 2) return new double[]{0.0,0.0,1.0};
+                    return null;
+                }
+                Double cst = AstUtils.evalConst(base);
+                if (cst != null) return new double[]{Math.pow(cst, k), 0.0, 0.0};
                 return null;
             }
             default:
