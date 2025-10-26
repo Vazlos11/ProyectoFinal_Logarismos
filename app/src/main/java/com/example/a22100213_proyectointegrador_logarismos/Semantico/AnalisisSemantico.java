@@ -552,24 +552,38 @@ public class AnalisisSemantico {
     private static boolean esPolinomica(NodoAST n) {
         if (n == null || n.token == null) return false;
         LexToken.Type t = n.token.type;
-        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI || t == LexToken.Type.VARIABLE) return n.hijos.isEmpty();
+
+        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.VARIABLE)
+            return n.hijos.isEmpty();
+
         if (t == LexToken.Type.SUM || t == LexToken.Type.SUB || t == LexToken.Type.MUL) {
             for (NodoAST h : n.hijos) if (!esPolinomica(h)) return false;
             return true;
         }
+
         if (t == LexToken.Type.EXP) {
-            Double e = evalConst(sub(n,1));
-            if (e == null) return false;
-            double r = Math.rint(e);
-            if (Math.abs(r - e) > 1e-9 || e < 0) return false;
-            return esPolinomica(sub(n,0));
+            if (n.hijos.size() != 2) return false;
+            if (!esPolinomica(n.hijos.get(0))) return false;
+            Double e = evalConst(n.hijos.get(1));
+            return e != null && e >= 0 && Math.abs(e - Math.rint(e)) < 1e-9;
         }
-        if (t == LexToken.Type.EQUAL) {
-            return esPolinomica(sub(n,0)) && esPolinomica(sub(n,1));
+
+        switch (t) {
+            case DIV: case CONST_E: case CONST_PI:
+            case LOG: case LN: case LOG_BASE2: case LOG_BASE10:
+            case RADICAL: case FACTORIAL:
+            case TRIG_SIN: case TRIG_COS: case TRIG_TAN:
+            case TRIG_COT: case TRIG_SEC: case TRIG_CSC:
+            case TRIG_ARCSIN: case TRIG_ARCCOS: case TRIG_ARCTAN:
+            case TRIG_ARCCOT: case TRIG_ARCSEC: case TRIG_ARCCSC:
+            case DERIV: case INTEGRAL_DEF: case INTEGRAL_INDEF:
+            case ABS: case IMAGINARY:
+                return false;
+            default:
         }
-        if (t == LexToken.Type.DIV || t == LexToken.Type.RADICAL) return false;
-        if (t == LexToken.Type.LOG || t == LexToken.Type.LN || t == LexToken.Type.LOG_BASE2 || t == LexToken.Type.LOG_BASE10) return false;
-        return false;
+
+        for (NodoAST h : n.hijos) if (!esPolinomica(h)) return false;
+        return true;
     }
 
     private static boolean coefEnteros(NodoAST n) {

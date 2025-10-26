@@ -75,6 +75,27 @@ public class PlanificadorResolucion {
                 return "Aislación simbólica/numérica";
             case SISTEMA_CRAMER:
                 return "Cramer";
+            case ECUACION_EXPONENCIAL:
+                return "Ecuación exponencial";
+            case ECUACION_POTENCIA:
+                return "Ecuación de potencia / radical";
+            case ECUACION_VALOR_ABSOLUTO:
+                return "Ecuación con valor absoluto";
+            case ECUACION_TRIG_SIN:
+                return "Ecuación trigonométrica (seno)";
+            case ECUACION_TRIG_COS:
+                return "Ecuación trigonométrica (coseno)";
+            case ECUACION_TRIG_TAN:
+                return "Ecuación trigonométrica (tangente)";
+            case ECUACION_ARC_TRIG:
+                return "Ecuación con funciones arcotrigonométricas";
+            case ECUACION_RACIONAL_LINEAL:
+                return "Ecuación racional lineal (ax+b)/(cx+d)=k";
+            case ECUACION_RECIPROCA_LINEAL:
+                return "Ecuación recíproca lineal 1/(ax+b)=c";
+            case DESPEJE_SUSTITUCION_SIMBOLICA:
+                return "Aislación simbólica (lineal)";
+
             case NINGUNO:
             default:
                 return "Sin método asignado";
@@ -89,8 +110,18 @@ public class PlanificadorResolucion {
                 NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
                 NodoAST d = resta(L, R);
 
-                if (esLnDeLinealIgualConst(eq, v))        return MetodoResolucion.ECUACION_LOGARITMICA;
-                if (esSinDeLinealIgualConst(eq, v))       return MetodoResolucion.ECUACION_TRIGONOMETRICA;
+                if (esExpDeLinealIgualConst(eq, v))          return MetodoResolucion.ECUACION_EXPONENCIAL;
+                if (esLnDeLinealIgualConst(eq, v))           return MetodoResolucion.ECUACION_LOGARITMICA;
+                if (esLogBaseDeLinealIgualConst(eq, v))      return MetodoResolucion.ECUACION_LOGARITMICA;
+                if (esPotenciaDeLinealIgualConst(eq, v))     return MetodoResolucion.ECUACION_POTENCIA;
+                if (esRadicalDeLinealIgualConst(eq, v))      return MetodoResolucion.ECUACION_POTENCIA;
+                if (esAbsDeLinealIgualConst(eq, v))          return MetodoResolucion.ECUACION_VALOR_ABSOLUTO;
+                if (esSinDeLinealIgualConst(eq, v))          return MetodoResolucion.ECUACION_TRIG_SIN;
+                if (esCosDeLinealIgualConst(eq, v))          return MetodoResolucion.ECUACION_TRIG_COS;
+                if (esTanDeLinealIgualConst(eq, v))          return MetodoResolucion.ECUACION_TRIG_TAN;
+                if (esArcTrigDeLinealIgualConst(eq, v))      return MetodoResolucion.ECUACION_ARC_TRIG;
+                if (esReciprocoDeLinealIgualConst(eq, v))    return MetodoResolucion.ECUACION_RECIPROCA_LINEAL;
+                if (esFraccionLinealIgualConst(eq, v))       return MetodoResolucion.ECUACION_RACIONAL_LINEAL;
 
                 int gp = gradoPolinomioEn(d, v);
                 if (gp >= 2) return metodoDespejePoli(eq);
@@ -99,9 +130,8 @@ public class PlanificadorResolucion {
 
                 return metodoDespejeLineal(eq);
             }
-            return MetodoResolucion.DESPEJE_SIMBOLICO_O_NUMERICO;
+            return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
         }
-
 
         if (raiz == null || rs == null) return MetodoResolucion.NINGUNO;
         if (rs.errores != null && !rs.errores.isEmpty()) return MetodoResolucion.NINGUNO;
@@ -135,12 +165,44 @@ public class PlanificadorResolucion {
                 return MetodoResolucion.NINGUNO;
         }
     }
+
     private static boolean isLnNode(NodoAST n) {
         return n != null && n.token != null && n.token.type == LexToken.Type.LN && n.hijos.size() == 1;
     }
     private static boolean isSinNode(NodoAST n) {
         return n != null && n.token != null && n.token.type == LexToken.Type.TRIG_SIN && n.hijos.size() == 1;
     }
+
+    private static boolean requiereDistribucionConstSobreSumaConVar(NodoAST n, String var){
+        if(n==null || n.token==null) return false;
+        if(n.token.type==LexToken.Type.MUL && n.hijos.size()==2){
+            Double c = evaluarConstante(n.hijos.get(0));
+            NodoAST other = n.hijos.get(1);
+            if(c==null){ c = evaluarConstante(other); other = n.hijos.get(0); }
+            if(c!=null && other!=null && other.token!=null &&
+                    (other.token.type==LexToken.Type.SUM || other.token.type==LexToken.Type.SUB) &&
+                    contieneVariableExacta(other, var)) return true;
+        }
+        for(NodoAST h:n.hijos) if(requiereDistribucionConstSobreSumaConVar(h,var)) return true;
+        return false;
+    }
+
+    private static boolean requiereLimpiarDenominadoresNumericos(NodoAST n){
+        if(n==null || n.token==null) return false;
+        if(n.token.type==LexToken.Type.DIV && n.hijos.size()==2){
+            Double den = evaluarConstante(n.hijos.get(1));
+            if(den!=null) return true;
+        }
+        for(NodoAST h:n.hijos) if(requiereLimpiarDenominadoresNumericos(h)) return true;
+        return false;
+    }
+
+    private static boolean requiereSustitucionSimbolicaLineal(NodoAST eq, String var){
+        return variableRepetida(eq) ||
+                requiereDistribucionConstSobreSumaConVar(eq,var) ||
+                requiereLimpiarDenominadoresNumericos(resta(eq.hijos.get(0), eq.hijos.get(1)));
+    }
+
 
     private static boolean esLnDeLinealIgualConst(NodoAST eq, String var) {
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
@@ -151,6 +213,109 @@ public class PlanificadorResolucion {
             return coefLineal(R.hijos.get(0), var) != null;
         }
         return false;
+    }
+    private static boolean isCosNode(NodoAST n){ return n!=null && n.token!=null &&
+            n.token.type==LexToken.Type.TRIG_COS && n.hijos.size()==1; }
+    private static boolean isTanNode(NodoAST n){ return n!=null && n.token!=null &&
+            n.token.type==LexToken.Type.TRIG_TAN && n.hijos.size()==1; }
+    private static boolean isAbsNode(NodoAST n){ return n!=null && n.token!=null &&
+            n.token.type==LexToken.Type.ABS && n.hijos.size()==1; }
+    private static boolean isRadicalNode(NodoAST n){ return n!=null && n.token!=null &&
+            n.token.type==LexToken.Type.RADICAL && n.hijos.size()==1; }
+    private static boolean isExpENode(NodoAST n){ return n!=null && n.token!=null &&
+            n.token.type==LexToken.Type.EXP && n.hijos.size()==2 &&
+            n.hijos.get(0)!=null && n.hijos.get(0).token!=null &&
+            n.hijos.get(0).token.type==LexToken.Type.CONST_E; }
+
+    private static boolean esExpDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        if(isExpENode(L) && evaluarConstante(R)!=null) return coefLineal(L.hijos.get(1),var)!=null;
+        if(isExpENode(R) && evaluarConstante(L)!=null) return coefLineal(R.hijos.get(1),var)!=null;
+        return false;
+    }
+
+    private static boolean esLogBaseDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        boolean Lok = (L!=null && L.token!=null &&
+                (L.token.type==LexToken.Type.LOG || L.token.type==LexToken.Type.LOG_BASE2
+                        || L.token.type==LexToken.Type.LOG_BASE10) && L.hijos.size()==1
+                && coefLineal(L.hijos.get(0),var)!=null && evaluarConstante(R)!=null);
+        boolean Rok = (R!=null && R.token!=null &&
+                (R.token.type==LexToken.Type.LOG || R.token.type==LexToken.Type.LOG_BASE2
+                        || R.token.type==LexToken.Type.LOG_BASE10) && R.hijos.size()==1
+                && coefLineal(R.hijos.get(0),var)!=null && evaluarConstante(L)!=null);
+        return Lok || Rok;
+    }
+
+    private static boolean esPotenciaDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        return (esPotenciaLineal(L,var) && evaluarConstante(R)!=null) ||
+                (esPotenciaLineal(R,var) && evaluarConstante(L)!=null);
+    }
+    private static boolean esPotenciaLineal(NodoAST n,String var){
+        if(n==null || n.token==null || n.token.type!=LexToken.Type.EXP || n.hijos.size()!=2) return false;
+        Double e=evaluarConstante(n.hijos.get(1)); if(e==null) return false;
+        return coefLineal(n.hijos.get(0),var)!=null;
+    }
+
+    private static boolean esRadicalDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        return (isRadicalNode(L) && coefLineal(L.hijos.get(0),var)!=null && evaluarConstante(R)!=null) ||
+                (isRadicalNode(R) && coefLineal(R.hijos.get(0),var)!=null && evaluarConstante(L)!=null);
+    }
+
+    private static boolean esAbsDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        return (isAbsNode(L) && coefLineal(L.hijos.get(0),var)!=null && evaluarConstante(R)!=null) ||
+                (isAbsNode(R) && coefLineal(R.hijos.get(0),var)!=null && evaluarConstante(L)!=null);
+    }
+
+    private static boolean esCosDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        Double cL=evaluarConstante(L), cR=evaluarConstante(R);
+        if(isCosNode(L) && cR!=null && Math.abs(cR)<=1+1e-12) return coefLineal(L.hijos.get(0),var)!=null;
+        if(isCosNode(R) && cL!=null && Math.abs(cL)<=1+1e-12) return coefLineal(R.hijos.get(0),var)!=null;
+        return false;
+    }
+    private static boolean esTanDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        if(isTanNode(L) && evaluarConstante(R)!=null) return coefLineal(L.hijos.get(0),var)!=null;
+        if(isTanNode(R) && evaluarConstante(L)!=null) return coefLineal(R.hijos.get(0),var)!=null;
+        return false;
+    }
+
+    private static boolean esArcTrigDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        return isArcTrigLineal(L,var) && evaluarConstante(R)!=null
+                || isArcTrigLineal(R,var) && evaluarConstante(L)!=null;
+    }
+    private static boolean isArcTrigLineal(NodoAST n,String var){
+        if(n==null || n.token==null || n.hijos.size()!=1) return false;
+        switch(n.token.type){
+            case TRIG_ARCSIN: case TRIG_ARCCOS: case TRIG_ARCTAN:
+            case TRIG_ARCCOT: case TRIG_ARCSEC: case TRIG_ARCCSC:
+                return coefLineal(n.hijos.get(0),var)!=null;
+            default: return false;
+        }
+    }
+
+    private static boolean esReciprocoDeLinealIgualConst(NodoAST eq,String var){
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        return (esReciprocoDeLineal(L,var) && evaluarConstante(R)!=null) ||
+                (esReciprocoDeLineal(R,var) && evaluarConstante(L)!=null);
+    }
+
+    private static boolean esFraccionLinealIgualConst(NodoAST eq,String var){
+        if(eq==null || eq.hijos.size()!=2) return false;
+        NodoAST L=eq.hijos.get(0), R=eq.hijos.get(1);
+        Double cL=evaluarConstante(L), cR=evaluarConstante(R);
+        if(cR!=null) return esCocienteLineal(L,var);
+        if(cL!=null) return esCocienteLineal(R,var);
+        return false;
+    }
+    private static boolean esCocienteLineal(NodoAST n,String var){
+        if(n==null || n.token==null || n.token.type!=LexToken.Type.DIV || n.hijos.size()!=2) return false;
+        return gradoPolinomioEn(n.hijos.get(0),var)==1 && gradoPolinomioEn(n.hijos.get(1),var)==1;
     }
 
     private static boolean esSinDeLinealIgualConst(NodoAST eq, String var) {
@@ -170,10 +335,9 @@ public class PlanificadorResolucion {
         boolean hayIgual = (buscarNodo(n, LexToken.Type.EQUAL) != null);
         boolean hayDeriv = (buscarNodo(n, LexToken.Type.DERIV) != null) || (buscarNodo(n, LexToken.Type.PRIME) != null);
         boolean hayIntegral = (buscarNodo(n, LexToken.Type.INTEGRAL_INDEF) != null) || (buscarNodo(n, LexToken.Type.INTEGRAL_DEF) != null);
-        boolean haySistema = false; // si tienes tokens de sistema, puedes checar aquí
+        boolean haySistema = false;
         boolean hayObjetivo = hayIgual || hayDeriv || hayIntegral || haySistema;
 
-        // “Sin objetivo” sólo aplica si hay variables en la expresión; si es numérica, sí es evaluable.
         return !hayObjetivo && contieneVariable(n);
     }
 
@@ -476,18 +640,23 @@ public class PlanificadorResolucion {
 
     private static MetodoResolucion metodoDespejeLineal(NodoAST eq) {
         if (eq == null || eq.token == null || eq.token.type != LexToken.Type.EQUAL || eq.hijos.size() != 2)
-            return MetodoResolucion.DESPEJE_SIMBOLICO_O_NUMERICO;
+            return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
+
+        if (contieneTrig(eq) || contieneLog(eq))
+            return MetodoResolucion.NEWTON_RAPHSON;
 
         String v = unicaVariable(eq);
-        if (v == null) return MetodoResolucion.DESPEJE_SIMBOLICO_O_NUMERICO;
+        if (v == null) return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
 
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
-
         int g = gradoPolinomioEn(resta(L, R), v);
-        if (g > 1) return MetodoResolucion.DESPEJE_SIMBOLICO_O_NUMERICO;
+        if (g > 1) return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
 
-        if (esRacional(eq) || variableRepetida(eq) || varEnMulDivConFactorNoConst(eq, v))
+        if (esRacional(eq) || varEnMulDivConFactorNoConst(eq, v))
             return MetodoResolucion.DESPEJE_BALANCE_INVERSAS;
+
+        if (requiereSustitucionSimbolicaLineal(eq, v))
+            return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
 
         boolean Llin = (gradoEn(L, v) >= 0 && gradoEn(L, v) <= 1);
         boolean Rlin = (gradoEn(R, v) >= 0 && gradoEn(R, v) <= 1);
@@ -497,10 +666,10 @@ public class PlanificadorResolucion {
         if ((Llin && Rc != null) || (Rlin && Lc != null))
             return MetodoResolucion.DESPEJE_AISLACION_DIRECTA;
 
-        return MetodoResolucion.DESPEJE_SIMBOLICO_O_NUMERICO;
+        if (Llin && Rlin) return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
+
+        return MetodoResolucion.DESPEJE_BALANCE_INVERSAS;
     }
-
-
     private static boolean esVariableIgualConstante(NodoAST eq) {
         if (eq == null || eq.token == null || eq.token.type != LexToken.Type.EQUAL || eq.hijos.size() != 2)
             return false;
@@ -511,32 +680,174 @@ public class PlanificadorResolucion {
         Double Rc = evaluarConstante(R);
         return (Lvar && Rc != null) || (Rvar && Lc != null);
     }
-
-    private static MetodoResolucion metodoDespejePoli(NodoAST eq) {
-
-        if (eq == null || eq.token == null || eq.token.type != LexToken.Type.EQUAL || eq.hijos.size() != 2)
-            return MetodoResolucion.NEWTON_RAPHSON;
-
-        String var = unicaVariable(eq);
-        if (var == null) return MetodoResolucion.NEWTON_RAPHSON;
-
-        NodoAST L = eq.hijos.get(0);
-        NodoAST R = eq.hijos.get(1);
-        NodoAST d = resta(L, R);
-
-        int g = gradoPolinomioEn(d, var);
-
-        if (g == 2) {
-            return MetodoResolucion.ECUACION_CUADRATICA;
-        }
-
-        if (g == 4 && (hayDivisionPorBinomioLineal(L, var) || hayDivisionPorBinomioLineal(d, var))) {
-            return MetodoResolucion.POLI_RUFFINI;
-        }
-
-        return MetodoResolucion.NEWTON_RAPHSON;
+    private static double[] coeficientesPolinomio(NodoAST n, String var) {
+        GradoPolinomio g = gradoSiPolinomio(n, var);
+        if (!g.ok || g.grado < 0) return null;
+        double[] a = new double[g.grado + 1];
+        acumCoeficientes(n, var, a);
+        return a;
     }
 
+    private static void acumCoeficientes(NodoAST n, String var, double[] a) {
+        if (n == null || n.token == null) return;
+        LexToken.Type t = n.token.type;
+
+        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) {
+            a[0] += Double.parseDouble(n.token.value);
+            return;
+        }
+        if (t == LexToken.Type.VARIABLE && var.equals(n.token.value) && n.hijos.isEmpty()) {
+            if (a.length > 1) a[1] += 1.0;
+            return;
+        }
+        if (t == LexToken.Type.SUM) {
+            for (NodoAST h : n.hijos) acumCoeficientes(h, var, a);
+            return;
+        }
+        if (t == LexToken.Type.SUB) {
+            if (!n.hijos.isEmpty()) {
+                acumCoeficientes(n.hijos.get(0), var, a);
+                for (int i = 1; i < n.hijos.size(); i++) {
+                    mulConstCoef(n.hijos.get(i), var, a, -1.0);
+                }
+            }
+            return;
+        }
+        if (t == LexToken.Type.MUL) {
+            if (n.hijos.size() == 2) {
+                Double cL = evaluarConstante(n.hijos.get(0));
+                Double cR = evaluarConstante(n.hijos.get(1));
+                if (cL != null) { mulConstCoef(n.hijos.get(1), var, a, cL); return; }
+                if (cR != null) { mulConstCoef(n.hijos.get(0), var, a, cR); return; }
+            }
+            double cacc = 1.0;
+            NodoAST resto = null;
+            for (NodoAST h : n.hijos) {
+                Double ch = evaluarConstante(h);
+                if (ch != null) cacc *= ch;
+                else resto = (resto == null) ? h : mul(resto, h);
+            }
+            if (resto != null) mulConstCoef(resto, var, a, cacc);
+            else a[0] += cacc;
+            return;
+        }
+        if (t == LexToken.Type.EXP && n.hijos.size() == 2) {
+            NodoAST base = n.hijos.get(0);
+            Double e = evaluarConstante(n.hijos.get(1));
+            if (e != null &&
+                    base != null && base.token != null &&
+                    base.token.type == LexToken.Type.VARIABLE && var.equals(base.token.value)) {
+                int p = (int)Math.rint(e);
+                if (p >= 0 && p < a.length) a[p] += 1.0;
+                return;
+            }
+        }
+        for (NodoAST h : n.hijos) acumCoeficientes(h, var, a);
+    }
+
+    private static void mulConstCoef(NodoAST n, String var, double[] a, double c) {
+        if (n == null || n.token == null) return;
+        LexToken.Type t = n.token.type;
+
+        if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) {
+            a[0] += c * Double.parseDouble(n.token.value);
+            return;
+        }
+        if (t == LexToken.Type.VARIABLE && var.equals(n.token.value) && n.hijos.isEmpty()) {
+            if (a.length > 1) a[1] += c;
+            return;
+        }
+        if (t == LexToken.Type.SUM) { for (NodoAST h : n.hijos) mulConstCoef(h, var, a, c); return; }
+        if (t == LexToken.Type.SUB) {
+            if (!n.hijos.isEmpty()) {
+                mulConstCoef(n.hijos.get(0), var, a, c);
+                for (int i = 1; i < n.hijos.size(); i++) mulConstCoef(n.hijos.get(i), var, a, -c);
+            }
+            return;
+        }
+        if (t == LexToken.Type.MUL) {
+            if (n.hijos.size() == 2) {
+                Double cL = evaluarConstante(n.hijos.get(0));
+                Double cR = evaluarConstante(n.hijos.get(1));
+                if (cL != null) { mulConstCoef(n.hijos.get(1), var, a, c * cL); return; }
+                if (cR != null) { mulConstCoef(n.hijos.get(0), var, a, c * cR); return; }
+            }
+            double cacc = c;
+            NodoAST resto = null;
+            for (NodoAST h : n.hijos) {
+                Double ch = evaluarConstante(h);
+                if (ch != null) cacc *= ch; else resto = (resto == null) ? h : mul(resto, h);
+            }
+            if (resto != null) mulConstCoef(resto, var, a, cacc);
+            else a[0] += cacc;
+            return;
+        }
+        if (t == LexToken.Type.EXP && n.hijos.size() == 2) {
+            NodoAST base = n.hijos.get(0);
+            Double e = evaluarConstante(n.hijos.get(1));
+            if (e != null &&
+                    base != null && base.token != null &&
+                    base.token.type == LexToken.Type.VARIABLE && var.equals(base.token.value)) {
+                int p = (int)Math.rint(e);
+                if (p >= 0 && p < a.length) a[p] += c;
+                return;
+            }
+        }
+        for (NodoAST h : n.hijos) mulConstCoef(h, var, a, c);
+    }
+
+    private static boolean casiEntero(double x) {
+        return Math.abs(x - Math.rint(x)) < 1e-9;
+    }
+
+    private static double evalPoli(double[] a, double x) {
+        double s = 0.0;
+        for (int i = a.length - 1; i >= 0; i--) s = s * x + a[i];
+        return s;
+    }
+
+    private static java.util.Set<Double> candidatosRacionalesDe(double c0, double an) {
+        java.util.Set<Double> s = new java.util.LinkedHashSet<>();
+        int A = (int)Math.rint(Math.abs(an));
+        int C = (int)Math.rint(Math.abs(c0));
+        if (A == 0) A = 1;
+        if (C == 0) C = 1;
+        for (int p = 1; p <= C; p++) if (C % p == 0)
+            for (int q = 1; q <= A; q++) if (A % q == 0) {
+                s.add((double)p / q); s.add(-(double)p / q);
+            }
+        return s;
+    }
+    private static boolean tieneRaizRacional(NodoAST n, String var) {
+        double[] a = coeficientesPolinomio(n, var);
+        if (a == null || a.length < 2) return false;
+        double an = a[a.length - 1], c0 = a[0];
+        if (!casiEntero(an) || !casiEntero(c0)) return false;
+        for (double r : candidatosRacionalesDe(c0, an)) {
+            if (Math.abs(evalPoli(a, r)) < 1e-10) return true;
+        }
+        return false;
+    }
+
+    private static NodoAST mul(NodoAST a, NodoAST b) {
+        NodoAST n = new NodoAST(new LexToken(LexToken.Type.MUL, "*", 6));
+        n.addHijo(cloneAST(a));
+        n.addHijo(cloneAST(b));
+        return n;
+    }
+
+    private static MetodoResolucion metodoDespejePoli(NodoAST eq) {
+        if (eq == null || eq.token == null || eq.token.type != LexToken.Type.EQUAL || eq.hijos.size() != 2)
+            return MetodoResolucion.NEWTON_RAPHSON;
+        String var = unicaVariable(eq);
+        if (var == null) return MetodoResolucion.NEWTON_RAPHSON;
+        NodoAST d = resta(eq.hijos.get(0), eq.hijos.get(1));
+        int g = gradoPolinomioEn(d, var);
+        if (g < 0) return MetodoResolucion.NEWTON_RAPHSON;
+        if (g == 1) return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
+        if (g == 2) return MetodoResolucion.ECUACION_CUADRATICA;
+        return MetodoResolucion.POLI_RUFFINI;
+    }
 
     private static boolean esSistemaLineal(NodoAST raiz, Set<String> vars) {
         List<NodoAST> eqs = extraerEcuaciones(raiz);
@@ -580,7 +891,7 @@ public class PlanificadorResolucion {
             if (n.hijos.size() != 2) return false;
             Set<String> vBase = varsEnSubarbol(n.hijos.get(0));
             Double e = evaluarConstante(n.hijos.get(1));
-            if (vBase.isEmpty()) return e != null; // constante^constante
+            if (vBase.isEmpty()) return e != null;
             return e != null && Math.abs(e - 1.0) < 1e-9 && expresionLinealEnVars(n.hijos.get(0), vars);
         }
 
@@ -1362,11 +1673,11 @@ public class PlanificadorResolucion {
     }
 
     private static boolean esPolinomica(NodoAST n) {
-        if (n == null || n.token == null) return true;
+        if (n == null || n.token == null) return false;
         LexToken.Type t = n.token.type;
 
         if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.VARIABLE)
-            return true;
+            return n.hijos.isEmpty();
 
         if (t == LexToken.Type.SUM || t == LexToken.Type.SUB || t == LexToken.Type.MUL) {
             for (NodoAST h : n.hijos) if (!esPolinomica(h)) return false;
@@ -1380,17 +1691,26 @@ public class PlanificadorResolucion {
             return e != null && e >= 0 && Math.abs(e - Math.rint(e)) < 1e-9;
         }
 
-        if (t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI || t == LexToken.Type.DIV)
+        if (t == LexToken.Type.DIV || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI)
             return false;
-        if (t == LexToken.Type.LOG || t == LexToken.Type.LN || t == LexToken.Type.LOG_BASE2 || t == LexToken.Type.LOG_BASE10)
-            return false;
-        if (t == LexToken.Type.RADICAL || t == LexToken.Type.FACTORIAL ||
-                t == LexToken.Type.DERIV || t == LexToken.Type.INTEGRAL_DEF || t == LexToken.Type.INTEGRAL_INDEF ||
-                t == LexToken.Type.ABS || t == LexToken.Type.IMAGINARY) return false;
+
+        switch (t) {
+            case LOG: case LN: case LOG_BASE2: case LOG_BASE10:
+            case RADICAL: case FACTORIAL:
+            case TRIG_SIN: case TRIG_COS: case TRIG_TAN:
+            case TRIG_COT: case TRIG_SEC: case TRIG_CSC:
+            case TRIG_ARCSIN: case TRIG_ARCCOS: case TRIG_ARCTAN:
+            case TRIG_ARCCOT: case TRIG_ARCSEC: case TRIG_ARCCSC:
+            case DERIV: case INTEGRAL_DEF: case INTEGRAL_INDEF:
+            case ABS: case IMAGINARY:
+                return false;
+            default:
+        }
 
         for (NodoAST h : n.hijos) if (!esPolinomica(h)) return false;
         return true;
     }
+
 
     private static boolean esSimple(NodoAST n) {
         if (n == null || n.token == null) return false;
