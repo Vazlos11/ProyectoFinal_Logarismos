@@ -12,6 +12,7 @@ import com.example.a22100213_proyectointegrador_logarismos.resolucion.t3derivada
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t6lineal.T6LinearResolver;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t7nolineal.T7NoLinealResolver;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t7nolineal.T7PolynomialResolver;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.t8sistemas.T8CramerResolver;
 
 import java.util.EnumSet;
 import java.util.LinkedList;
@@ -81,8 +82,9 @@ public class MotorResolucion {
             case T6_DESPEJE_LINEAL:
                 return new T6LinearResolver().resolve(raiz, rs);
             case T7_DESPEJE_POLINOMICO:
-                return new T7PolynomialResolver().resolve(raiz, rs);
+                return new T7NoLinealResolver().resolve(raiz, rs);
             case T8_SISTEMA_EC:
+                return new T8CramerResolver().resolve(raiz, rs);
             case T9_IMAGINARIOS:
             default: {
                 ResultadoResolucion rr = new ResultadoResolucion();

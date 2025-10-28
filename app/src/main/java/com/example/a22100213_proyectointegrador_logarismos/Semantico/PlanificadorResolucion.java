@@ -103,7 +103,15 @@ public class PlanificadorResolucion {
     }
 
     public static MetodoResolucion metodo(NodoAST raiz, ResultadoSemantico rs) {
-        NodoAST eq = buscarNodo(raiz, LexToken.Type.EQUAL);
+        if (raiz == null || rs == null) return MetodoResolucion.NINGUNO;
+        if (rs.errores != null && !rs.errores.isEmpty()) return MetodoResolucion.NINGUNO;
+
+        List<NodoAST> eqs = extraerEcuaciones(raiz);
+        if (rs.tipoPrincipal == TipoExpresion.T8_SISTEMA_EC || (eqs != null && eqs.size() >= 2)) {
+            return metodoSistema(raiz);
+        }
+
+        NodoAST eq = (eqs != null && eqs.size() == 1) ? eqs.get(0) : buscarNodo(raiz, LexToken.Type.EQUAL);
         if (eq != null && eq.hijos.size() == 2) {
             String v = unicaVariable(eq);
             if (v != null) {
@@ -125,46 +133,31 @@ public class PlanificadorResolucion {
 
                 int gp = gradoPolinomioEn(d, v);
                 if (gp >= 2) return metodoDespejePoli(eq);
-
                 if (!esPolinomica(d)) return MetodoResolucion.NEWTON_RAPHSON;
-
                 return metodoDespejeLineal(eq);
             }
             return MetodoResolucion.DESPEJE_SUSTITUCION_SIMBOLICA;
         }
 
-        if (raiz == null || rs == null) return MetodoResolucion.NINGUNO;
-        if (rs.errores != null && !rs.errores.isEmpty()) return MetodoResolucion.NINGUNO;
-
-        if (esSoloExpresionSinObjetivo(raiz)) {
-            return MetodoResolucion.EXPRESION_SIN_OBJETIVO;
-        }
+        if (esSoloExpresionSinObjetivo(raiz)) return MetodoResolucion.EXPRESION_SIN_OBJETIVO;
 
         switch (rs.tipoPrincipal) {
-            case T8_SISTEMA_EC:
-                return metodoSistema(raiz);
-            case T3_DERIVADA:
-                return metodoDerivada(raiz);
-            case T4_INTEGRAL_INDEFINIDA:
-                return metodoIntegral(raiz, false);
+            case T8_SISTEMA_EC:               return metodoSistema(raiz);
+            case T3_DERIVADA:                 return metodoDerivada(raiz);
+            case T4_INTEGRAL_INDEFINIDA:      return metodoIntegral(raiz, false);
             case T5_INTEGRAL_DEFINIDA: {
                 MetodoResolucion mi = metodoIntegral(raiz, true);
                 return mi == MetodoResolucion.NINGUNO ? MetodoResolucion.INTEGRAL_NUMERICA_SIMPSON_O_TRAPECIO : mi;
             }
-            case T1_ARITMETICA:
-                return metodoAritmetica(raiz);
-            case T2_ALGEBRA_FUNC:
-                return metodoAlgebra(raiz);
-            case T6_DESPEJE_LINEAL:
-                return metodoDespejeLineal(raiz);
-            case T7_DESPEJE_POLINOMICO:
-                return metodoDespejePoli(raiz);
-            case T9_IMAGINARIOS:
-                return MetodoResolucion.ALGEBRA_COMPLEJOS;
-            default:
-                return MetodoResolucion.NINGUNO;
+            case T1_ARITMETICA:               return metodoAritmetica(raiz);
+            case T2_ALGEBRA_FUNC:             return metodoAlgebra(raiz);
+            case T6_DESPEJE_LINEAL:           return metodoDespejeLineal(raiz);
+            case T7_DESPEJE_POLINOMICO:       return metodoDespejePoli(raiz);
+            case T9_IMAGINARIOS:              return MetodoResolucion.ALGEBRA_COMPLEJOS;
+            default:                          return MetodoResolucion.NINGUNO;
         }
     }
+
 
     private static boolean isLnNode(NodoAST n) {
         return n != null && n.token != null && n.token.type == LexToken.Type.LN && n.hijos.size() == 1;
@@ -619,11 +612,12 @@ public class PlanificadorResolucion {
     }
 
     private static MetodoResolucion metodoAlgebra(NodoAST raiz) {
-
+        if (contieneImaginarios(raiz)) return MetodoResolucion.ALGEBRA_COMPLEJOS;
         if (contieneTrig(raiz) || contieneLog(raiz)) return MetodoResolucion.IDENTIDADES_TRIG;
         if (tieneExponenteFracONeg(raiz)) return MetodoResolucion.POTENCIAS;
-        return MetodoResolucion.NEWTON_RAPHSON;
+        return MetodoResolucion.SUSTITUCION_SIMBOLICA_EVALUACION;
     }
+
     private static boolean varEnMulDivConFactorNoConst(NodoAST n, String var) {
         if (n == null || n.token == null) return false;
         if ((n.token.type == LexToken.Type.MUL || n.token.type == LexToken.Type.DIV) && n.hijos.size() == 2) {
@@ -851,15 +845,19 @@ public class PlanificadorResolucion {
 
     private static boolean esSistemaLineal(NodoAST raiz, Set<String> vars) {
         List<NodoAST> eqs = extraerEcuaciones(raiz);
+        if (eqs.size() < 2 || eqs.size() > 3) return false;
         for (NodoAST eq : eqs) {
             if (eq == null || eq.token == null || eq.token.type != LexToken.Type.EQUAL || eq.hijos.size() != 2)
                 return false;
             NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
             if (!expresionLinealEnVars(L, vars) || !expresionLinealEnVars(R, vars)) return false;
+
+            Set<String> veq = varsEnSubarbol(eq);
+            veq.retainAll(vars);
+            if (!veq.containsAll(vars)) return false;
         }
         return true;
     }
-
     private static boolean expresionLinealEnVars(NodoAST n, Set<String> vars) {
         if (n == null || n.token == null) return true;
         LexToken.Type t = n.token.type;
