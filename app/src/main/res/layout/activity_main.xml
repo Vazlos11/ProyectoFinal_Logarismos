@@ -397,16 +397,6 @@
 
                 <android.widget.Button
                     android:onClick="ins_char"
-                    android:text="i"
-                    android:background="@drawable/button_border"
-                    android:layout_columnWeight="1"
-                    style="@style/TecladoButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:ignore="HardcodedText" />
-
-                <android.widget.Button
-                    android:onClick="ins_char"
                     android:text="j"
                     android:background="@drawable/button_border"
                     android:layout_columnWeight="1"
@@ -660,6 +650,16 @@
                 <android.widget.Button android:onClick="ins_char" android:text="e"
                     android:background="@drawable/button_border" android:layout_columnWeight="1"
                     style="@style/TecladoButton" android:layout_width="0dp" android:layout_height="wrap_content"/>
+
+                <android.widget.Button
+                    android:onClick="ins_char"
+                    android:text="i"
+                    android:background="@drawable/button_border"
+                    android:layout_columnWeight="1"
+                    style="@style/TecladoButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    tools:ignore="HardcodedText" />
 
                 <android.widget.Button android:onClick="ins_char" android:text="√"
                     android:background="@drawable/button_border" android:layout_columnWeight="1"

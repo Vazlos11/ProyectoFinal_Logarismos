@@ -249,6 +249,7 @@ public class AstUtils {
             if (t == LexToken.Type.VARIABLE) return n.token.value == null ? "x" : n.token.value;
             if (t == LexToken.Type.CONST_E) return "e";
             if (t == LexToken.Type.CONST_PI) return "\\pi";
+            if (t == LexToken.Type.IMAGINARY) return (n.token.value == null || n.token.value.isEmpty()) ? "i" : n.token.value;
             if (t == LexToken.Type.SUM) return toTeX(n.hijos.get(0), depth+1) + "+" + toTeX(n.hijos.get(1), depth+1);
             if (t == LexToken.Type.SUB) return toTeX(n.hijos.get(0), depth+1) + "-" + toTeX(n.hijos.get(1), depth+1);
             if (t == LexToken.Type.MUL) {
