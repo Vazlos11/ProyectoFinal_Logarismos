@@ -50,11 +50,110 @@
                 tools:ignore="MissingClass" />
 
             <LinearLayout
+                android:id="@+id/tokens_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="#EFEFEF"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tokens_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TOKENS (orden original)"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="6dp" />
+
+                <ScrollView
+                    android:id="@+id/tokens_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp"
+                    android:fillViewport="true"
+                    android:nestedScrollingEnabled="true">
+
+                    <TextView
+                        android:id="@+id/tokens_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="2dp"
+                        android:padding="8dp" />
+                </ScrollView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/ast_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="#F3F3F3"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/ast_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ÁRBOL SINTÁCTICO"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="6dp" />
+
+                <ScrollView
+                    android:id="@+id/ast_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp"
+                    android:fillViewport="true"
+                    android:nestedScrollingEnabled="true">
+
+                    <TextView
+                        android:id="@+id/ast_tree"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="2dp"
+                        android:padding="8dp" />
+                </ScrollView>
+
+                <TextView
+                    android:id="@+id/ast_latex_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="LaTeX generado desde el AST"
+                    android:textStyle="bold"
+                    android:paddingTop="8dp" />
+
+                <TextView
+                    android:id="@+id/ast_latex_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="2dp"
+                    android:padding="8dp" />
+            </LinearLayout>
+
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="bottom"
                 android:paddingBottom="16dp">
+
+                <android.widget.Button
+                    android:id="@+id/btn_tokens"
+                    android:onClick="showTokens"
+                    android:text="Ver tokens"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/btn_tec"
+                    android:background="@drawable/btn_bordernum"
+                    tools:ignore="SpeakableTextPresentCheck" />
 
                 <android.widget.Button
                     android:onClick="solve"
@@ -67,6 +166,29 @@
                     android:layout_gravity="bottom"
                     android:background="@drawable/btn_bordernum"
                     tools:ignore="SpeakableTextPresentCheck" />
+
+                <android.widget.Button
+                    android:id="@+id/btn_ast"
+                    android:onClick="showAst"
+                    android:text="Ver árbol"
+                    android:layout_marginTop="8dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/btn_tec"
+                    android:background="@drawable/btn_bordernum"
+                    tools:ignore="SpeakableTextPresentCheck" />
+
+                <android.widget.Button
+                    android:id="@+id/btn_ast_latex"
+                    android:onClick="showAstLatex"
+                    android:text="Ver LaTeX (AST)"
+                    android:layout_marginTop="8dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/btn_tec"
+                    android:background="@drawable/btn_bordernum"
+                    tools:ignore="SpeakableTextPresentCheck" />
+
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -77,7 +199,6 @@
         android:orientation="vertical"
         android:gravity="bottom">
 
-        <!-- Tabs de teclado -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

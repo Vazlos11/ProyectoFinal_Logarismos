@@ -1,11 +1,15 @@
 package com.example.a22100213_proyectointegrador_logarismos;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.ViewFlipper;
+
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t2algebra.T2AlgebraResolver;
+
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -14,13 +18,16 @@ import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSe
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.SemanticoError;
 import com.judemanutd.katexview.KatexView;
 
-import org.matheclipse.core.eval.ExprEvaluator;
-import org.matheclipse.core.interfaces.IExpr;
-
 import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
+    private View astContainer;
+    private TextView astTree;
+    private TextView astLatex;
 
+    private View tokensContainer;
+    private TextView tokensList;
+    ScrollView tokensScroll;
     TextView test;
     private static final int MAX_SYS_ROWS = 3;
 
@@ -108,11 +115,32 @@ public class MainActivity extends AppCompatActivity {
         latexMap.put("|    |", "\\lvert \\rvert");
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
+        astContainer = findViewById(R.id.ast_container);
+        astTree = findViewById(R.id.ast_tree);
+        astLatex = findViewById(R.id.ast_latex_text);
+
+        View astScroll = findViewById(R.id.ast_scroll);
+        astScroll.setOnTouchListener((v, ev) -> {
+            v.getParent().requestDisallowInterceptTouchEvent(true);
+            return false;
+        });
+
+        tokensContainer = findViewById(R.id.tokens_container);
+        tokensList = findViewById(R.id.tokens_list);
+
+        tokensScroll = findViewById(R.id.tokens_scroll);
+        tokensScroll.setOnTouchListener((v, ev) -> {
+            v.getParent().requestDisallowInterceptTouchEvent(true);
+            return false;
+        });
+
         katexView = findViewById(R.id.katex_text);
         answer = findViewById(R.id.katex_answer);
         cursorIndex = 0;
@@ -129,6 +157,212 @@ public class MainActivity extends AppCompatActivity {
         applyAngleMode(saved);
     }
 
+    public void showAst(View view) {
+        if (astContainer.getVisibility() == View.VISIBLE && astTree.getText() != null && astTree.getText().length() > 0) {
+            astContainer.setVisibility(View.GONE);
+            return;
+        }
+        try {
+            List<LexToken> ts = AnalisisLexico.analizar(rootTokens);
+            AnalisisSintactico parser = new AnalisisSintactico(ts);
+            NodoAST arbol = parser.parse();
+            String tree = dumpAst(arbol, 0);
+            astTree.setText(tree);
+            astContainer.setVisibility(View.VISIBLE);
+        } catch (Throwable ex) {
+            astTree.setText("No se pudo construir el árbol: " + ex.getMessage());
+            astContainer.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void showAstLatex(View view) {
+        if (astContainer.getVisibility() == View.VISIBLE && astLatex.getText() != null && astLatex.getText().length() > 0) {
+            astContainer.setVisibility(View.GONE);
+            return;
+        } else {
+            try {
+                List<LexToken> ts = AnalisisLexico.analizar(rootTokens);
+                AnalisisSintactico parser = new AnalisisSintactico(ts);
+                NodoAST arbol = parser.parse();
+
+                String latex = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(arbol);
+                if (latex == null) latex = "";
+
+                astLatex.setText(latex);
+
+                String rendered = latex.startsWith("$$") ? latex : "$$\\Large " + latex + " $$";
+                answer.setText(rendered);
+
+                astContainer.setVisibility(View.VISIBLE);
+            } catch (Throwable ex) {
+                astLatex.setText("No se pudo convertir a LaTeX: " + ex.getMessage());
+                astContainer.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+
+    private String dumpAst(Object node, int depth) {
+        if (node == null) return indent(depth) + "∅";
+        StringBuilder sb = new StringBuilder();
+        String label = nodeLabel(node);
+        sb.append(indent(depth)).append("• ").append(label).append("\n");
+
+        List<Object> kids = findChildren(node);
+        if (kids.isEmpty()) return sb.toString();
+        for (Object k : kids) sb.append(dumpAst(k, depth + 1));
+        return sb.toString();
+    }
+
+    private String indent(int d) {
+        char[] c = new char[d * 2];
+        Arrays.fill(c, ' ');
+        return new String(c);
+    }
+
+    private String nodeLabel(Object node) {
+        Object lex = findLexToken(node);
+        if (lex != null) {
+            String tt = safeFieldString(lex, "type", "tipo", "tokenType", "kind", "op");
+            String vv = safeFieldString(lex, "value", "valor", "lexeme", "text", "name", "symbol");
+            if (tt == null || tt.isEmpty()) tt = lex.getClass().getSimpleName();
+            if (vv == null) vv = "";
+            return vv.isEmpty() ? tt : (tt + " [" + vv + "]");
+        }
+        String tipo = safeFieldString(node, "tipo", "type", "nodeType", "op", "kind", "name");
+        String valor = safeFieldString(node, "valor", "value", "lexeme", "text", "symbol");
+        if ((tipo == null || tipo.isEmpty())) tipo = node.getClass().getSimpleName();
+        if (valor == null) valor = "";
+        return valor.isEmpty() ? tipo : (tipo + " [" + valor + "]");
+    }
+
+    private Object findLexToken(Object node) {
+        try {
+            for (java.lang.reflect.Field f : node.getClass().getDeclaredFields()) {
+                f.setAccessible(true);
+                Object v = f.get(node);
+                if (v == null) continue;
+                if (v.getClass().getSimpleName().toLowerCase().contains("lextoken") ||
+                        v.getClass().getName().toLowerCase().contains("lextoken")) return v;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private String safeFieldString(Object o, String... names) {
+        for (String n : names) {
+            try {
+                java.lang.reflect.Method m = tryGetter(o, n);
+                if (m != null) {
+                    Object v = m.invoke(o);
+                    if (v != null) return v.toString();
+                }
+                java.lang.reflect.Field f = o.getClass().getDeclaredField(n);
+                f.setAccessible(true);
+                Object v = f.get(o);
+                if (v != null) return v.toString();
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    private java.lang.reflect.Method tryGetter(Object o, String base) {
+        String b = base.substring(0, 1).toUpperCase() + base.substring(1);
+        String[] cand = new String[]{"get" + b, "is" + b};
+        for (String nm : cand) {
+            try {
+                java.lang.reflect.Method m = o.getClass().getMethod(nm);
+                m.setAccessible(true);
+                return m;
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private List<Object> findChildren(Object node) {
+        List<Object> out = new ArrayList<>();
+        Object l = tryChild(node, "izq", "left", "lhs");
+        Object r = tryChild(node, "der", "right", "rhs");
+        Object h = tryChild(node, "hijo", "child", "arg", "argument");
+        if (l != null || r != null) {
+            if (l != null) out.add(l);
+            if (r != null) out.add(r);
+            return out;
+        }
+        if (h != null) {
+            out.add(h);
+            return out;
+        }
+        List<?> lst = tryChildList(node, "hijos", "children", "args", "arguments", "operands");
+        if (lst != null) {
+            for (Object k : lst) if (k != null) out.add(k);
+            return out;
+        }
+        for (java.lang.reflect.Field f : node.getClass().getDeclaredFields()) {
+            try {
+                f.setAccessible(true);
+                Object v = f.get(node);
+                if (v == null) continue;
+                if (isAstNode(v)) out.add(v);
+                else if (v instanceof List) {
+                    for (Object k : (List<?>) v) if (isAstNode(k)) out.add(k);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return out;
+    }
+
+    private boolean isAstNode(Object v) {
+        if (v == null) return false;
+        String n = v.getClass().getSimpleName().toLowerCase();
+        String q = v.getClass().getName().toLowerCase();
+        return n.contains("nodoast") || q.contains("nodoast") || n.contains("ast") || q.contains("ast");
+    }
+
+    private Object tryChild(Object o, String... names) {
+        for (String n : names) {
+            try {
+                java.lang.reflect.Method m = tryGetter(o, n);
+                if (m != null) {
+                    Object v = m.invoke(o);
+                    if (v != null) return v;
+                }
+                java.lang.reflect.Field f = o.getClass().getDeclaredField(n);
+                f.setAccessible(true);
+                Object v = f.get(o);
+                if (v != null) return v;
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<?> tryChildList(Object o, String... names) {
+        for (String n : names) {
+            try {
+                java.lang.reflect.Method m = tryGetter(o, n);
+                if (m != null) {
+                    Object v = m.invoke(o);
+                    if (v instanceof List<?>) return (List<?>) v;
+                }
+                java.lang.reflect.Field f = o.getClass().getDeclaredField(n);
+                f.setAccessible(true);
+                Object v = f.get(o);
+                if (v instanceof List<?>) return (List<?>) v;
+            } catch (NoSuchFieldException ignored) {
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+
     private boolean isContainerSymbol(String symbol) {
         return symbol.equals("\\sqrt{}") ||
                 symbol.equals("\\lvert \\rvert") ||
@@ -141,6 +375,89 @@ public class MainActivity extends AppCompatActivity {
         StringBuilder sb = new StringBuilder();
         appendListWithCursor(sb, rootTokens);
         katexView.setText("$$\\Large " + sb + "$$");
+    }
+
+    public void showTokens(View view) {
+        if (tokensContainer.getVisibility() == View.VISIBLE) {
+            tokensContainer.setVisibility(View.GONE);
+            return;
+        }
+        List<LexToken> ts = AnalisisLexico.analizar(rootTokens);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ts.size(); i++) {
+            LexToken t = ts.get(i);
+            String val = t.value == null ? "" : t.value;
+            String type = t.type == null ? "" : t.type.name();
+            sb.append("• #").append(i)
+                    .append("  tipo: ").append(type);
+            if (!val.isEmpty()) sb.append("  valor: ").append(val);
+            sb.append("  prioridad: ").append(t.prioridad).append("\n");
+            if (t.type == LexToken.Type.INTEGRAL_DEF) {
+                int j = i + 1;
+                String low = extractParenGroup(ts, j);
+                j = advanceOverGroup(ts, j);
+                String up = extractParenGroup(ts, j);
+                j = advanceOverGroup(ts, j);
+                String body = extractParenGroup(ts, j);
+                j = advanceOverGroup(ts, j);
+                String diff = "";
+                if (j < ts.size() && ts.get(j).type == LexToken.Type.DIFFERENTIAL)
+                    diff = ts.get(j).value;
+                sb.append("   límites: [").append(low).append(", ").append(up).append("]\n");
+                sb.append("   cuerpo: ").append(body).append("\n");
+                sb.append("   diferencial: ").append(diff).append("\n");
+            }
+        }
+        tokensList.setText(sb.toString().trim());
+        tokensContainer.setVisibility(View.VISIBLE);
+    }
+
+
+    private String extractParenGroup(List<LexToken> ts, int start) {
+        if (start >= ts.size() || ts.get(start).type != LexToken.Type.PAREN_OPEN) return "";
+        int lvl = 0;
+        StringBuilder s = new StringBuilder();
+        for (int k = start; k < ts.size(); k++) {
+            LexToken x = ts.get(k);
+            if (x.type == LexToken.Type.PAREN_OPEN) {
+                if (lvl++ > 0) s.append(renderToken(x));
+                continue;
+            }
+            if (x.type == LexToken.Type.PAREN_CLOSE) {
+                if (--lvl == 0) break;
+                s.append(renderToken(x));
+                continue;
+            }
+            s.append(renderToken(x));
+        }
+        return s.toString().trim();
+    }
+
+    private int advanceOverGroup(List<LexToken> ts, int start) {
+        if (start >= ts.size() || ts.get(start).type != LexToken.Type.PAREN_OPEN) return start;
+        int lvl = 0;
+        int k = start;
+        for (; k < ts.size(); k++) {
+            LexToken x = ts.get(k);
+            if (x.type == LexToken.Type.PAREN_OPEN) {
+                lvl++;
+                continue;
+            }
+            if (x.type == LexToken.Type.PAREN_CLOSE) {
+                lvl--;
+                if (lvl == 0) {
+                    k++;
+                    break;
+                }
+            }
+        }
+        return k;
+    }
+
+    private String renderToken(LexToken t) {
+        if (t == null) return "";
+        if (t.value != null && !t.value.isEmpty()) return t.value + " ";
+        return t.type == null ? "" : t.type.name() + " ";
     }
 
     private void appendListWithCursor(StringBuilder sb, List<Token> list) {
@@ -193,13 +510,15 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("\\frac{");
                 if (t.children.size() > 0) {
                     Token num = t.children.get(0);
-                    if (num != null && num.isContainer && "()".equals(num.value)) appendChildrenWithCursor(sb, num);
+                    if (num != null && num.isContainer && "()".equals(num.value))
+                        appendChildrenWithCursor(sb, num);
                     else if (num != null) appendTokenWithCursor(sb, num);
                 }
                 sb.append("}{");
                 if (t.children.size() > 1) {
                     Token den = t.children.get(1);
-                    if (den != null && den.isContainer && "()".equals(den.value)) appendChildrenWithCursor(sb, den);
+                    if (den != null && den.isContainer && "()".equals(den.value))
+                        appendChildrenWithCursor(sb, den);
                     else if (den != null) appendTokenWithCursor(sb, den);
                 }
                 sb.append("}");
@@ -213,7 +532,8 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("} ");
                 if (t.children.size() > 2) {
                     Token body = t.children.get(2);
-                    if (body != null && body.isContainer && "()".equals(body.value)) appendChildrenWithCursor(sb, body);
+                    if (body != null && body.isContainer && "()".equals(body.value))
+                        appendChildrenWithCursor(sb, body);
                     else if (body != null) appendTokenWithCursor(sb, body);
                 }
                 if (t.children.size() > 3) {
@@ -225,7 +545,8 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("\\int ");
                 if (t.children.size() > 0) {
                     Token bodyI = t.children.get(0);
-                    if (bodyI != null && bodyI.isContainer && "()".equals(bodyI.value)) appendChildrenWithCursor(sb, bodyI);
+                    if (bodyI != null && bodyI.isContainer && "()".equals(bodyI.value))
+                        appendChildrenWithCursor(sb, bodyI);
                     else if (bodyI != null) appendTokenWithCursor(sb, bodyI);
                 }
                 if (t.children.size() > 1) {
@@ -238,7 +559,8 @@ public class MainActivity extends AppCompatActivity {
                 for (int r = 0; r < t.children.size(); r++) {
                     if (r > 0) sb.append(" \\\\ ");
                     Token row = t.children.get(r);
-                    if (row != null && row.isContainer && "()".equals(row.value)) appendChildrenWithCursor(sb, row);
+                    if (row != null && row.isContainer && "()".equals(row.value))
+                        appendChildrenWithCursor(sb, row);
                     else if (row != null) appendTokenWithCursor(sb, row);
                 }
                 sb.append("\\end{array}\\right.");
@@ -352,7 +674,7 @@ public class MainActivity extends AppCompatActivity {
                 latexEquivalent.equals("\\arcsin") || latexEquivalent.equals("\\arccos") ||
                 latexEquivalent.equals("\\arctan") || latexEquivalent.equals("\\arccot") ||
                 latexEquivalent.equals("\\arcsec") || latexEquivalent.equals("\\arccsc") ||
-                latexEquivalent.equals("\\ln")  || latexEquivalent.equals("\\log")) {
+                latexEquivalent.equals("\\ln") || latexEquivalent.equals("\\log")) {
             newToken = Token.container(latexEquivalent);
             Token parenGroup = Token.container("()");
             parenGroup.parent = newToken;
@@ -435,8 +757,8 @@ public class MainActivity extends AppCompatActivity {
 
         if ("\\int_def".equals(latexEquivalent)) {
             newToken = Token.container("\\int_def");
-            Token inf  = Token.container("()");
-            Token sup  = Token.container("()");
+            Token inf = Token.container("()");
+            Token sup = Token.container("()");
             Token body = Token.container("()");
             Token diff = Token.atomic("dx");
             inf.parent = newToken;
@@ -456,8 +778,10 @@ public class MainActivity extends AppCompatActivity {
 
         if ("\\{ \\}".equals(latexEquivalent)) {
             Token sys = null;
-            if (currentContainer != null && "\\system".equals(currentContainer.value)) sys = currentContainer;
-            else if (currentContainer != null && currentContainer.parent != null && "\\system".equals(currentContainer.parent.value)) sys = currentContainer.parent;
+            if (currentContainer != null && "\\system".equals(currentContainer.value))
+                sys = currentContainer;
+            else if (currentContainer != null && currentContainer.parent != null && "\\system".equals(currentContainer.parent.value))
+                sys = currentContainer.parent;
 
             if (sys != null) {
                 if (sys.children.size() < MAX_SYS_ROWS) {
@@ -486,10 +810,17 @@ public class MainActivity extends AppCompatActivity {
         if (isContainerSymbol(latexEquivalent)) {
             Token cont;
             switch (latexEquivalent) {
-                case "\\sqrt{}": cont = Token.container("\\sqrt"); break;
-                case "\\lvert \\rvert": cont = Token.container("\\lvert"); break;
-                case "[]": cont = Token.container("[]"); break;
-                default: cont = Token.container("()");
+                case "\\sqrt{}":
+                    cont = Token.container("\\sqrt");
+                    break;
+                case "\\lvert \\rvert":
+                    cont = Token.container("\\lvert");
+                    break;
+                case "[]":
+                    cont = Token.container("[]");
+                    break;
+                default:
+                    cont = Token.container("()");
             }
             insertToken(cont);
             updateView();
@@ -603,17 +934,24 @@ public class MainActivity extends AppCompatActivity {
 
     private Token preferInnerEditable(Token cont) {
         if (cont == null || !cont.isContainer) return null;
-        if ("\\system".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
-        if ("\\int_def".equals(cont.value)) return cont.children.size() > 1 ? cont.children.get(1) : null;
-        if ("\\int".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
-        if ("\\frac".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
-        if ("\\exp".equals(cont.value)) return cont.children.isEmpty() ? null : cont.children.get(0);
-        if ("\\log_{2}".equals(cont.value) || "\\log_{10}".equals(cont.value)) return cont.children.size() > 1 ? cont.children.get(1) : null;
+        if ("\\system".equals(cont.value))
+            return cont.children.size() > 0 ? cont.children.get(0) : null;
+        if ("\\int_def".equals(cont.value))
+            return cont.children.size() > 1 ? cont.children.get(1) : null;
+        if ("\\int".equals(cont.value))
+            return cont.children.size() > 0 ? cont.children.get(0) : null;
+        if ("\\frac".equals(cont.value))
+            return cont.children.size() > 0 ? cont.children.get(0) : null;
+        if ("\\exp".equals(cont.value))
+            return cont.children.isEmpty() ? null : cont.children.get(0);
+        if ("\\log_{2}".equals(cont.value) || "\\log_{10}".equals(cont.value))
+            return cont.children.size() > 1 ? cont.children.get(1) : null;
         if (cont.children.size() == 1) {
             Token c0 = cont.children.get(0);
             if (c0 != null && c0.isContainer) {
                 String v = c0.value;
-                if ("()".equals(v) || "[]".equals(v) || "\\{ \\}".equals(v) || "\\lvert".equals(v) || "^group".equals(v)) return c0;
+                if ("()".equals(v) || "[]".equals(v) || "\\{ \\}".equals(v) || "\\lvert".equals(v) || "^group".equals(v))
+                    return c0;
             }
         }
         return null;
@@ -1044,13 +1382,34 @@ public class MainActivity extends AppCompatActivity {
         }
         updateView();
     }
-    public void moveCursorLeft(View view) { moveCursorDelta(-1); }
-    public void moveCursorRight(View view) { moveCursorDelta(1); }
-    public void showNumKeyboard(View view) { keyboardsFlipp.setDisplayedChild(0); }
-    public void showAlphaKeyboard(View view) { keyboardsFlipp.setDisplayedChild(1); }
-    public void showNumAlgKeyboard(View view) { keyboardsFlipp.setDisplayedChild(2); }
-    public void showTrigKeyboard(View view) { keyboardsFlipp.setDisplayedChild(3); }
-    public void showAvKeyboard(View view) { keyboardsFlipp.setDisplayedChild(4); }
+
+    public void moveCursorLeft(View view) {
+        moveCursorDelta(-1);
+    }
+
+    public void moveCursorRight(View view) {
+        moveCursorDelta(1);
+    }
+
+    public void showNumKeyboard(View view) {
+        keyboardsFlipp.setDisplayedChild(0);
+    }
+
+    public void showAlphaKeyboard(View view) {
+        keyboardsFlipp.setDisplayedChild(1);
+    }
+
+    public void showNumAlgKeyboard(View view) {
+        keyboardsFlipp.setDisplayedChild(2);
+    }
+
+    public void showTrigKeyboard(View view) {
+        keyboardsFlipp.setDisplayedChild(3);
+    }
+
+    public void showAvKeyboard(View view) {
+        keyboardsFlipp.setDisplayedChild(4);
+    }
 
     public void solve(View view) {
         List<LexToken> lexTokens = AnalisisLexico.analizar(rootTokens);
@@ -1119,22 +1478,38 @@ public class MainActivity extends AppCompatActivity {
 
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {
-            case T1_ARITMETICA: return "Operación aritmética";
-            case T2_ALGEBRA_FUNC: return "Operación algebraica con funciones";
-            case T3_DERIVADA: return "Derivada";
-            case T4_INTEGRAL_INDEFINIDA: return "Integral indefinida";
-            case T5_INTEGRAL_DEFINIDA: return "Integral definida";
-            case T6_DESPEJE_LINEAL: return "Despeje algebraico lineal";
-            case T7_DESPEJE_POLINOMICO: return "Despeje algebraico polinómico";
-            case T8_SISTEMA_EC: return "Sistema de ecuaciones lineales";
-            case T9_IMAGINARIOS: return "Expresión con números imaginarios";
-            case ST_SIMPLE: return "Simple";
-            case ST_POLINOMICA: return "Polinómica";
-            case ST_TRIGONOMETRICA: return "Trigonométrica";
-            case ST_EXPONENCIAL_LOG: return "Exponencial/Logarítmica";
-            case ST_RACIONAL: return "Racional";
-            case ST_RADICAL: return "Radical";
-            default: return "Desconocido";
+            case T1_ARITMETICA:
+                return "Operación aritmética";
+            case T2_ALGEBRA_FUNC:
+                return "Operación algebraica con funciones";
+            case T3_DERIVADA:
+                return "Derivada";
+            case T4_INTEGRAL_INDEFINIDA:
+                return "Integral indefinida";
+            case T5_INTEGRAL_DEFINIDA:
+                return "Integral definida";
+            case T6_DESPEJE_LINEAL:
+                return "Despeje algebraico lineal";
+            case T7_DESPEJE_POLINOMICO:
+                return "Despeje algebraico polinómico";
+            case T8_SISTEMA_EC:
+                return "Sistema de ecuaciones lineales";
+            case T9_IMAGINARIOS:
+                return "Expresión con números imaginarios";
+            case ST_SIMPLE:
+                return "Simple";
+            case ST_POLINOMICA:
+                return "Polinómica";
+            case ST_TRIGONOMETRICA:
+                return "Trigonométrica";
+            case ST_EXPONENCIAL_LOG:
+                return "Exponencial/Logarítmica";
+            case ST_RACIONAL:
+                return "Racional";
+            case ST_RADICAL:
+                return "Radical";
+            default:
+                return "Desconocido";
         }
     }
 
