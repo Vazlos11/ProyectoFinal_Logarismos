@@ -67,6 +67,18 @@
                     android:layout_gravity="bottom"
                     android:background="@drawable/btn_bordernum"
                     tools:ignore="SpeakableTextPresentCheck" />
+
+                <android.widget.Button
+                    android:id="@+id/btn_view_solution"
+                    android:onClick="openSolution"
+                    android:text="Ver Solución"
+                    android:layout_marginTop="4dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/btn_tec"
+                    android:background="@drawable/btn_bordernum"
+                    android:visibility="gone"
+                    tools:ignore="SpeakableTextPresentCheck" />
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

@@ -13,6 +13,12 @@
         android:theme="@style/Theme._22100213_proyectoIntegrador_Logarismos"
         tools:targetApi="31">
         <activity
+            android:name=".GraficarActivity"
+            android:exported="false" />
+        <activity
+            android:name=".solucion.SolucionActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

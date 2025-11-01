@@ -1,5 +1,6 @@
 package com.example.a22100213_proyectointegrador_logarismos;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -8,25 +9,26 @@ import android.widget.ViewFlipper;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t2algebra.T2AlgebraResolver;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.SemanticoError;
+import com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity;
 import com.judemanutd.katexview.KatexView;
-
 import org.matheclipse.core.eval.ExprEvaluator;
 import org.matheclipse.core.interfaces.IExpr;
-
 import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
-
+    private Button btnViewSolution;
+    private ArrayList<String> lastStepsLatex = new ArrayList<>();
+    private String lastExprLatex = "";
+    private boolean lastGraphable = false;
     TextView test;
     private static final int MAX_SYS_ROWS = 3;
-
     private List<Token> rootTokens = new ArrayList<>();
     private Token currentContainer = null;
     private int cursorIndex = 0;
+    private String lastMetodo = "";
     private KatexView katexView;
     private KatexView answer;
     private ViewFlipper keyboardsFlipp;
@@ -34,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS = "logarismos_prefs";
     private static final String KEY_ANGLE_MODE = "angle_mode";
     private android.widget.Button btnAngle;
-
     private static final String CURSOR = "\\textcolor{red}{\\vert}";
 
     private static final Set<String> ATOMIC_TOKENS = new HashSet<>(Arrays.asList(
@@ -113,16 +114,17 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        btnViewSolution = findViewById(R.id.btn_view_solution);
+        btnViewSolution.setVisibility(View.GONE);
+        btnViewSolution.setOnClickListener(this::openSolution);
         katexView = findViewById(R.id.katex_text);
         answer = findViewById(R.id.katex_answer);
         cursorIndex = 0;
         keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
         test = findViewById(R.id.test);
-
         keyboardsFlipp.setInAnimation(this, android.R.anim.fade_in);
         keyboardsFlipp.setOutAnimation(this, android.R.anim.fade_out);
         updateView();
-
         btnAngle = findViewById(R.id.btn_angle_mode);
         android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
         String saved = sp.getString(KEY_ANGLE_MODE, "RADIANS");
@@ -204,7 +206,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 sb.append("}");
                 break;
-
             case "\\int_def":
                 sb.append("\\int_{");
                 if (t.children.size() > 0) appendTokenWithCursor(sb, t.children.get(0));
@@ -248,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
                     else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
@@ -266,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
                     else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
@@ -281,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
                     else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
@@ -299,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(name);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
                     else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
@@ -308,7 +309,6 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
-
             case "\\log_{2}":
             case "\\log_{10}": {
                 sb.append("\\log_{");
@@ -316,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("}");
                 if (t.children.size() > 1) {
                     Token arg = t.children.get(1);
-                    if ("()".equals(arg.value)) appendTokenWithCursor(sb, arg);
+                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
                     else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
@@ -363,7 +363,6 @@ public class MainActivity extends AppCompatActivity {
             updateView();
             return;
         }
-
 
         if ("\\log_{2}".equals(latexEquivalent) || "\\log_{10}".equals(latexEquivalent)) {
             newToken = Token.container(latexEquivalent);
@@ -618,7 +617,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return null;
     }
-
 
     public void deleteChar(View view) {
         borrarToken();
@@ -1044,6 +1042,7 @@ public class MainActivity extends AppCompatActivity {
         }
         updateView();
     }
+
     public void moveCursorLeft(View view) { moveCursorDelta(-1); }
     public void moveCursorRight(View view) { moveCursorDelta(1); }
     public void showNumKeyboard(View view) { keyboardsFlipp.setDisplayedChild(0); }
@@ -1057,7 +1056,6 @@ public class MainActivity extends AppCompatActivity {
         try {
             AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
             NodoAST arbol = parser.parse();
-
             ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
 
             if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
@@ -1066,6 +1064,7 @@ public class MainActivity extends AppCompatActivity {
                 test.setText(sbErr.toString());
                 answer.setText("");
                 hasResultShown = false;
+                if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
                 return;
             }
 
@@ -1082,6 +1081,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("\nPlan: ").append(plan);
             }
             test.setText(sb.toString());
+            lastMetodo = (plan != null) ? plan.trim() : "";
 
             com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr =
                     com.example.a22100213_proyectointegrador_logarismos.resolucion.MotorResolucion.resolver(arbol, rs);
@@ -1093,27 +1093,56 @@ public class MainActivity extends AppCompatActivity {
                         rr.resultado != null ? rr.resultado : arbol
                 );
                 if (finalTex == null) finalTex = "";
-                if (!finalTex.startsWith("$$")) {
-                    finalTex = "$$\\Large " + finalTex + " $$";
-                }
+                if (!finalTex.startsWith("$$")) finalTex = "$$\\Large " + finalTex + " $$";
                 answer.setText(finalTex);
                 hasResultShown = finalTex.trim().length() > 0;
+
+                String exprTex = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(arbol);
+                if (exprTex == null) exprTex = "";
+                if (!exprTex.startsWith("$$")) exprTex = "$$\\Large " + exprTex + " $$";
+                lastExprLatex = exprTex;
+
+                lastStepsLatex = new ArrayList<>();
+                List<com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion> pasos = rr.pasos;
+                if (pasos != null) {
+                    for (com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion p : pasos) {
+                        String tex = p != null ? p.latex : "";
+                        if (tex == null) tex = "";
+                        String low = tex.toLowerCase(Locale.ROOT);
+                        if (low.contains("formateo") && low.contains("final")) continue;
+                        lastStepsLatex.add(tex);
+                    }
+                }
+
+                com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t = rs.tipoPrincipal;
+                lastGraphable =
+                        t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T5_INTEGRAL_DEFINIDA
+                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T7_DESPEJE_POLINOMICO
+                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T2_ALGEBRA_FUNC
+                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T3_DERIVADA;
+
+                if (btnViewSolution != null) btnViewSolution.setVisibility(hasResultShown ? View.VISIBLE : View.GONE);
             } else {
                 answer.setText("");
                 hasResultShown = false;
+                if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
             }
+
         } catch (RuntimeException ex) {
             test.setText("Error de sintaxis: " + ex.getMessage());
             answer.setText("");
             hasResultShown = false;
+            if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         } catch (Exception ex) {
             test.setText("Ocurrió un problema inesperado al procesar la expresión.");
             answer.setText("");
+            if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
             hasResultShown = false;
         } catch (Throwable ex) {
             test.setText("Fallo crítico del motor: " + ex.getClass().getSimpleName());
             answer.setText("");
             hasResultShown = false;
+            if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         }
     }
 
@@ -1136,6 +1165,16 @@ public class MainActivity extends AppCompatActivity {
             case ST_RADICAL: return "Radical";
             default: return "Desconocido";
         }
+    }
+
+    public void openSolution(View v) {
+        if (lastStepsLatex == null) lastStepsLatex = new ArrayList<>();
+        Intent i = new Intent(this, SolucionActivity.class);
+        i.putStringArrayListExtra(SolucionActivity.EXTRA_STEPS_LATEX, lastStepsLatex);
+        i.putExtra(SolucionActivity.EXTRA_EXPR_LATEX, lastExprLatex);
+        i.putExtra(SolucionActivity.EXTRA_GRAFICABLE, lastGraphable);
+        i.putExtra(SolucionActivity.EXTRA_METODO, lastMetodo);
+        startActivity(i);
     }
 
     private String formatSubtipos(java.util.Set<com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion> s) {
@@ -1180,5 +1219,4 @@ public class MainActivity extends AppCompatActivity {
             solve(null);
         }
     }
-
 }
