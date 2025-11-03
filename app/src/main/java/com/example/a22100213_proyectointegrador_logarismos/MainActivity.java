@@ -14,8 +14,6 @@ import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSe
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.SemanticoError;
 import com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity;
 import com.judemanutd.katexview.KatexView;
-import org.matheclipse.core.eval.ExprEvaluator;
-import org.matheclipse.core.interfaces.IExpr;
 import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,8 +46,11 @@ public class MainActivity extends AppCompatActivity {
             "\\log_{2}",
             "\\log_{10}",
             "\\%",
-            "'", "''", "′"
+            "'", "''", "′",
+            "=", "+", "-", "/"
     ));
+
+    private static final Set<String> BIN_OPS = new HashSet<>(Arrays.asList("+", "-", "\\cdot ", "/", "="));
 
     private static final Map<String, String> latexMap = new HashMap<>();
 
@@ -346,6 +347,19 @@ public class MainActivity extends AppCompatActivity {
         String latexEquivalent = latexMap.getOrDefault(symbol, symbol);
         Token newToken;
 
+        if ("-".equals(latexEquivalent)) {
+            if (isUnaryMinusContext()) {
+                Token par = Token.container("()");
+                insertToken(par);
+                currentContainer = par;
+                cursorIndex = 0;
+                Token minus = Token.simple("-");
+                insertToken(minus);
+                updateView();
+                return;
+            }
+        }
+
         if (latexEquivalent.equals("\\sin") || latexEquivalent.equals("\\cos") ||
                 latexEquivalent.equals("\\tan") || latexEquivalent.equals("\\cot") ||
                 latexEquivalent.equals("\\sec") || latexEquivalent.equals("\\csc") ||
@@ -531,6 +545,17 @@ public class MainActivity extends AppCompatActivity {
         return t != null && t.isAtomic && "\\cdot ".equals(t.value);
     }
 
+    private boolean isUnaryMinusContext() {
+        List<Token> targetList = (currentContainer == null) ? rootTokens : currentContainer.children;
+        int pos = cursorIndex;
+        if (pos == 0) return true;
+        Token prev = targetList.get(pos - 1);
+        if (prev == null) return true;
+        if (prev.isAtomic && BIN_OPS.contains(prev.value)) return true;
+        if (prev.isContainer) return true;
+        return false;
+    }
+
     private void insertToken(Token token) {
         List<Token> targetList = (currentContainer == null) ? rootTokens : currentContainer.children;
         Token parentToken = currentContainer;
@@ -625,13 +650,28 @@ public class MainActivity extends AppCompatActivity {
     private void borrarToken() {
         List<Token> targetList = (currentContainer == null) ? rootTokens : currentContainer.children;
         if (cursorIndex > 0) {
+            Token toRemove = targetList.get(cursorIndex - 1);
             targetList.remove(cursorIndex - 1);
             cursorIndex--;
+            if (toRemove != null) pruneAroundCursorAfterRemoval(toRemove);
         } else {
             if (currentContainer != null) {
                 Token parent = currentContainer.parent;
                 List<Token> parentList = (parent == null) ? rootTokens : parent.children;
                 int idxInParent = parentList.indexOf(currentContainer);
+
+                if ("^group".equals(currentContainer.value) && currentContainer.children.isEmpty()) {
+                    Token exp = currentContainer.parent;
+                    if (exp != null && "\\exp".equals(exp.value)) {
+                        List<Token> gpList = (exp.parent == null) ? rootTokens : exp.parent.children;
+                        int idx = gpList.indexOf(exp);
+                        gpList.remove(idx);
+                        currentContainer = exp.parent;
+                        cursorIndex = Math.max(0, idx);
+                        updateView();
+                        return;
+                    }
+                }
 
                 if (parent != null && "\\system".equals(parent.value)) {
                     if (targetList.isEmpty()) {
@@ -670,8 +710,10 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     if (currentContainer.children.isEmpty()) {
                         parentList.remove(idxInParent);
+                        Token removed = currentContainer;
                         currentContainer = parent;
                         cursorIndex = idxInParent;
+                        if (removed != null && "\\exp".equals(removed.value)) pruneEmptyExponent(parent, parentList, Math.max(0, idxInParent - 1));
                     } else {
                         currentContainer = parent;
                         cursorIndex = idxInParent;
@@ -680,6 +722,40 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         updateView();
+    }
+
+    private void pruneAroundCursorAfterRemoval(Token removed) {
+        List<Token> list = (currentContainer == null) ? rootTokens : currentContainer.children;
+        if (cursorIndex > 0 && cursorIndex - 1 < list.size()) {
+            Token prev = list.get(cursorIndex - 1);
+            if (prev != null && "\\exp".equals(prev.value)) pruneEmptyExponent(prev.parent, list, cursorIndex - 1);
+        }
+        if (cursorIndex < list.size()) {
+            Token next = list.get(cursorIndex);
+            if (next != null && "\\exp".equals(next.value)) pruneEmptyExponent(next.parent, list, cursorIndex);
+        }
+        if (currentContainer != null && "^group".equals(currentContainer.value) && currentContainer.children.isEmpty()) {
+            Token exp = currentContainer.parent;
+            if (exp != null && "\\exp".equals(exp.value)) {
+                List<Token> gpList = (exp.parent == null) ? rootTokens : exp.parent.children;
+                int idx = gpList.indexOf(exp);
+                gpList.remove(idx);
+                currentContainer = exp.parent;
+                cursorIndex = Math.max(0, idx);
+            }
+        }
+    }
+
+    private void pruneEmptyExponent(Token parent, List<Token> list, int idxOfExpCandidate) {
+        if (idxOfExpCandidate < 0 || idxOfExpCandidate >= list.size()) return;
+        Token exp = list.get(idxOfExpCandidate);
+        if (exp == null || !exp.isContainer || !"\\exp".equals(exp.value)) return;
+        boolean empty = exp.children.isEmpty()
+                || (exp.children.size() == 1 && (exp.children.get(0) == null || exp.children.get(0).children.isEmpty()));
+        if (empty) {
+            list.remove(idxOfExpCandidate);
+            if (cursorIndex > idxOfExpCandidate) cursorIndex--;
+        }
     }
 
     private void moveCursorDelta(int delta) {
@@ -786,7 +862,7 @@ public class MainActivity extends AppCompatActivity {
                     List<Token> gpList = (gp == null) ? rootTokens : gp.children;
                     int idx = gpList.indexOf(p);
                     currentContainer = gp;
-                    cursorIndex = (gp == null) ? (idx + 1) : (idx + 1);
+                    cursorIndex = idx + 1;
                     updateView();
                     return;
                 }
@@ -815,7 +891,7 @@ public class MainActivity extends AppCompatActivity {
                     List<Token> gpList = (gp == null) ? rootTokens : gp.children;
                     int idx = gpList.indexOf(p);
                     currentContainer = gp;
-                    cursorIndex = (gp == null) ? idx : idx;
+                    cursorIndex = idx;
                     updateView();
                     return;
                 }
@@ -878,7 +954,7 @@ public class MainActivity extends AppCompatActivity {
                 List<Token> gpList = (gp == null) ? rootTokens : gp.children;
                 int idx = gpList.indexOf(frac);
                 currentContainer = gp;
-                cursorIndex = (gp == null) ? (idx + 1) : (idx + 1);
+                cursorIndex = idx + 1;
                 updateView();
                 return;
             }
@@ -899,14 +975,25 @@ public class MainActivity extends AppCompatActivity {
                 List<Token> gpList = (gp == null) ? rootTokens : gp.children;
                 int idx = gpList.indexOf(frac);
                 currentContainer = gp;
-                cursorIndex = (gp == null) ? idx : idx;
+                cursorIndex = idx;
                 updateView();
                 return;
             }
         }
 
-        if (currentContainer != null && currentContainer.parent != null && "\\int".equals(currentContainer.parent.value)) {
-            Token p = currentContainer.parent;
+        if (currentContainer != null && currentContainer.isContainer && "\\exp".equals(currentContainer.value)) {
+            Token g = preferInnerEditable(currentContainer);
+            if (g != null) {
+                currentContainer = g;
+                if (delta > 0) cursorIndex = g.children.size();
+                else cursorIndex = 0;
+                updateView();
+                return;
+            }
+        }
+
+        if (currentContainer != null && currentContainer.parent != null && "\\exp".equals(currentContainer.parent.value)) {
+            Token exp = currentContainer.parent;
             List<Token> childList = currentContainer.children;
 
             if (delta > 0) {
@@ -915,11 +1002,11 @@ public class MainActivity extends AppCompatActivity {
                     updateView();
                     return;
                 }
-                Token gp = p.parent;
+                Token gp = exp.parent;
                 List<Token> gpList = (gp == null) ? rootTokens : gp.children;
-                int idx = gpList.indexOf(p);
+                int idx = gpList.indexOf(exp);
                 currentContainer = gp;
-                cursorIndex = (gp == null) ? (idx + 1) : (idx + 1);
+                cursorIndex = idx + 1;
                 updateView();
                 return;
             }
@@ -930,11 +1017,11 @@ public class MainActivity extends AppCompatActivity {
                     updateView();
                     return;
                 }
-                Token gp = p.parent;
+                Token gp = exp.parent;
                 List<Token> gpList = (gp == null) ? rootTokens : gp.children;
-                int idx = gpList.indexOf(p);
+                int idx = gpList.indexOf(exp);
                 currentContainer = gp;
-                cursorIndex = (gp == null) ? idx : idx;
+                cursorIndex = idx;
                 updateView();
                 return;
             }
@@ -951,6 +1038,10 @@ public class MainActivity extends AppCompatActivity {
                     if (next.isContainer) {
                         if ("\\frac".equals(next.value) && next.children.size() > 0) {
                             currentContainer = next.children.get(0);
+                            cursorIndex = 0;
+                        } else if ("\\exp".equals(next.value)) {
+                            Token g = preferInnerEditable(next);
+                            currentContainer = (g != null) ? g : next;
                             cursorIndex = 0;
                         } else {
                             currentContainer = next;
@@ -969,8 +1060,6 @@ public class MainActivity extends AppCompatActivity {
                 if (cursorIndex > 0) {
                     Token prev = targetList.get(cursorIndex - 1);
                     if (prev.isContainer) {
-                        currentContainer = prev;
-                        cursorIndex = prev.children.size();
                         if ("\\int_def".equals(prev.value)) {
                             currentContainer = prev.children.get(2);
                             cursorIndex = currentContainer.children.size();
@@ -990,6 +1079,13 @@ public class MainActivity extends AppCompatActivity {
                                 currentContainer = prev;
                                 cursorIndex = prev.children.size();
                             }
+                        } else if ("\\exp".equals(prev.value)) {
+                            Token g = preferInnerEditable(prev);
+                            currentContainer = (g != null) ? g : prev;
+                            cursorIndex = currentContainer.children.size();
+                        } else {
+                            currentContainer = prev;
+                            cursorIndex = prev.children.size();
                         }
                         updateView();
                         return;
@@ -1014,7 +1110,7 @@ public class MainActivity extends AppCompatActivity {
                     cursorIndex = idx;
                 } else {
                     currentContainer = parent;
-                    cursorIndex = (currentContainer == null) ? idx : idx;
+                    cursorIndex = idx;
                 }
             }
         } else {
@@ -1030,13 +1126,13 @@ public class MainActivity extends AppCompatActivity {
                     List<Token> gpList = (gp == null) ? rootTokens : gp.children;
                     int i = gpList.indexOf(parent);
                     currentContainer = gp;
-                    cursorIndex = (gp == null) ? (i + 1) : (i + 1);
+                    cursorIndex = i + 1;
                 } else if (parent != null && "\\system".equals(parent.value)) {
                     currentContainer = parent;
                     cursorIndex = idx + 1;
                 } else {
                     currentContainer = parent;
-                    cursorIndex = (currentContainer == null) ? (idx + 1) : (idx + 1);
+                    cursorIndex = idx + 1;
                 }
             }
         }

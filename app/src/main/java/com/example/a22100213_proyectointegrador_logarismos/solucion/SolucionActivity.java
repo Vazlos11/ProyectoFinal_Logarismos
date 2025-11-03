@@ -81,7 +81,7 @@ public class SolucionActivity extends AppCompatActivity {
         if (in == null) return out;
         for (String s : in) {
             if (s == null) continue;
-            if (looksLikeFormateoFinal(s)) continue; // no mostrar “Formateo final” (ni título ni contenido)
+            if (looksLikeFormateoFinal(s)) continue;
             String tex = toDisplayMath(s);
             if (!isEffectivelyEmpty(tex)) out.add(tex);
         }
@@ -91,7 +91,6 @@ public class SolucionActivity extends AppCompatActivity {
     private boolean looksLikeFormateoFinal(String s) {
         if (s == null) return false;
         String t = stripDelimiters(s).toLowerCase(Locale.ROOT);
-        // Detecta tanto \text{Formateo final} como texto plano
         return t.contains("formateo final");
     }
 
@@ -105,40 +104,32 @@ public class SolucionActivity extends AppCompatActivity {
         if (s == null) return "$$\\displaystyle \\;$$";
         String t = s.trim();
 
-        // 1) Quitar delimitadores existentes ($$, \[ \], \( \)) y prefijos de tamaño
         t = stripDelimiters(t);
         t = t.replaceFirst("^\\\\Large\\s*", "")
                 .replaceFirst("^\\\\large\\s*", "")
                 .replaceFirst("^\\\\displaystyle\\s*", "");
 
-        // 2) Normalizar saltos de línea y espacios
         t = t.replace("\r", " ").replace("\n", " ").replaceAll("\\s{2,}", " ").trim();
 
-        // 3) Corregir “, dx” o “, dy” → “\, dx” para evitar salto/lista rara
         t = t.replaceAll(",\\s*(d[x|y])", "\\\\, $1");
 
-        // 4) Envolver en display math estándar
         return "$$\\displaystyle " + t + " $$";
     }
 
     private String stripDelimiters(String s) {
         String t = s.trim();
 
-        // $$ ... $$
         if (t.startsWith("$$") && t.endsWith("$$") && t.length() >= 4) {
             t = t.substring(2, t.length() - 2).trim();
         }
 
-        // \[ ... \]
         if (t.startsWith("\\[") && t.endsWith("\\]") && t.length() >= 4) {
             t = t.substring(2, t.length() - 2).trim();
         }
 
-        // \( ... \)
         if (t.startsWith("\\(") && t.endsWith("\\)") && t.length() >= 4) {
             t = t.substring(2, t.length() - 2).trim();
         }
-
         return t;
     }
 }

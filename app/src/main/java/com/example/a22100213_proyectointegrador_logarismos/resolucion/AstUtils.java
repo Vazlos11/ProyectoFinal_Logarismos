@@ -284,6 +284,7 @@ public class AstUtils {
             if (t == LexToken.Type.TRIG_ARCTAN) return "\\arctan\\left(" + toTeX(n.hijos.get(0), depth+1) + "\\right)";
             if (t == LexToken.Type.ABS) return "\\left|" + toTeX(n.hijos.get(0), depth+1) + "\\right|";
             if (t == LexToken.Type.EQUAL) return toTeX(n.hijos.get(0), depth+1) + "=" + toTeX(n.hijos.get(1), depth+1);
+
             if (t == LexToken.Type.INTEGRAL_INDEF) {
                 String body = n.hijos.size() > 0 ? toTeX(n.hijos.get(0), depth+1) : "0";
                 String dx = "x";
@@ -291,8 +292,9 @@ public class AstUtils {
                     String s = n.hijos.get(1).token.value.trim();
                     if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
                 }
-                return "\\int " + body + " \\\\, d" + dx;
+                return "\\int " + body + " \\, d" + dx;
             }
+
             if (t == LexToken.Type.INTEGRAL_DEF) {
                 String a = n.hijos.size() > 0 ? toTeX(n.hijos.get(0), depth+1) : "0";
                 String b = n.hijos.size() > 1 ? toTeX(n.hijos.get(1), depth+1) : "1";
@@ -302,8 +304,9 @@ public class AstUtils {
                     String s = n.hijos.get(3).token.value.trim();
                     if (s.startsWith("d") && s.length() > 1) dx = s.substring(1);
                 }
-                return "\\int_{" + a + "}^{" + b + "} " + body + " \\\\, d" + dx;
+                return "\\int_{" + a + "}^{" + b + "} " + body + " \\, d" + dx;
             }
+
             if (t == LexToken.Type.DERIV) {
                 String v = "x";
                 if (n.hijos.size() > 1 && n.hijos.get(1) != null && n.hijos.get(1).token != null && n.hijos.get(1).token.type == LexToken.Type.DIFFERENTIAL) {

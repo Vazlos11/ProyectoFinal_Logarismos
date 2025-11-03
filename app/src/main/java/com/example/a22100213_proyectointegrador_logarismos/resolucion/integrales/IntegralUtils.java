@@ -870,6 +870,86 @@ public final class IntegralUtils {
 
         return null;
     }
+    public static NodoAST normalizeSquaresForTrigSub(NodoAST n, String var) {
+        if (n == null) return null;
+        NodoAST r = AstUtils.cloneTree(n);
+        normalizeSquaresForTrigSubInPlace(r, var);
+        return r;
+    }
+
+    private static void normalizeSquaresForTrigSubInPlace(NodoAST n, String var) {
+        if (n == null || n.token == null) return;
+        for (NodoAST h : n.hijos) normalizeSquaresForTrigSubInPlace(h, var);
+        if (n.token.type == LexToken.Type.RADICAL && n.hijos.size() == 1) {
+            NodoAST inside = n.hijos.get(0);
+            if (inside != null && inside.token != null &&
+                    (inside.token.type == LexToken.Type.SUM || inside.token.type == LexToken.Type.SUB) &&
+                    inside.hijos.size() == 2) {
+                NodoAST A = inside.hijos.get(0);
+                NodoAST B = inside.hijos.get(1);
+                if (isPositiveConst(A) && isConstTimesSquareOfLinear(B, var)) {
+                    NodoAST z = toSquareLinear(B, var);
+                    inside.hijos.set(1, z);
+                    z.parent = inside;
+                } else if (isPositiveConst(B) && isConstTimesSquareOfLinear(A, var)) {
+                    NodoAST z = toSquareLinear(A, var);
+                    inside.hijos.set(0, z);
+                    z.parent = inside;
+                }
+            }
+        }
+    }
+
+    private static boolean isPositiveConst(NodoAST n) {
+        Double c = AstUtils.evalConst(n);
+        return c != null && c >= 0;
+    }
+
+    private static boolean isConstTimesSquareOfLinear(NodoAST n, String var) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.MUL && n.hijos.size() == 2) {
+            Double cL = AstUtils.evalConst(n.hijos.get(0));
+            Double cR = AstUtils.evalConst(n.hijos.get(1));
+            NodoAST exp = null;
+            Double c = null;
+            if (cL != null) { c = cL; exp = n.hijos.get(1); }
+            else if (cR != null) { c = cR; exp = n.hijos.get(0); }
+            if (c != null && c > 0 && exp != null && exp.token != null &&
+                    exp.token.type == LexToken.Type.EXP && exp.hijos.size() == 2) {
+                Double e = AstUtils.evalConst(exp.hijos.get(1));
+                return e != null && Math.abs(e - 2.0) < 1e-9 && containsVar(exp.hijos.get(0), var);
+            }
+        }
+        return false;
+    }
+
+    private static NodoAST toSquareLinear(NodoAST n, String var) {
+        Double cL = AstUtils.evalConst(n.hijos.get(0));
+        Double cR = AstUtils.evalConst(n.hijos.get(1));
+        NodoAST exp = (cL != null) ? n.hijos.get(1) : n.hijos.get(0);
+        double c = (cL != null) ? cL : cR;
+        double s = Math.sqrt(Math.abs(c));
+        NodoAST base = exp.hijos.get(0);
+        NodoAST newBase = AstUtils.bin(
+                LexToken.Type.MUL,
+                AstUtils.number(s),
+                AstUtils.cloneTree(base),
+                "*", 6
+        );
+        return AstUtils.bin(
+                LexToken.Type.EXP,
+                newBase,
+                AstUtils.number(2.0),
+                "^", 7
+        );
+    }
+
+    private static boolean containsVar(NodoAST n, String var) {
+        if (n == null) return false;
+        if (n.token != null && n.token.type == LexToken.Type.VARIABLE && var.equals(n.token.value)) return true;
+        for (NodoAST h : n.hijos) if (containsVar(h, var)) return true;
+        return false;
+    }
 
     public static boolean equalsSymja(NodoAST a, NodoAST b) {
         String sa = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toSymja(a);

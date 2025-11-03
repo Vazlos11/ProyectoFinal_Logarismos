@@ -25,40 +25,58 @@ public final class IntegralResolver implements Resolver {
 
     @Override
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
+        boolean definida = rs != null && rs.tipoPrincipal == TipoExpresion.T5_INTEGRAL_DEFINIDA;
         MetodoResolucion m = PlanificadorResolucion.metodo(raiz, rs);
-        if (rs.tipoPrincipal == TipoExpresion.T4_INTEGRAL_INDEFINIDA) {
-            return resolverIndefinida(raiz, rs, m);
-        } else {
-            return resolverDefinida(raiz, rs, m);
-        }
-    }
 
-    public static ResultadoResolucion resolverIndefinida(NodoAST raiz, ResultadoSemantico rs, MetodoResolucion m) {
+        if (m == MetodoResolucion.NINGUNO) {
+            IntegratorRule pr = new PowerRuleIntegrator(definida);
+            ResultadoResolucion rrTry = pr.apply(raiz, rs);
+            if (rrTry != null && rrTry.resultado != null) return rrTry;
+
+            ResultadoResolucion out = new ResultadoResolucion();
+            out.pasos = new java.util.ArrayList<>();
+            out.resultado = raiz;
+            out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
+            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Sin método asignado"));
+            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+            return out;
+        }
+
         IntegratorRule rule;
         switch (m) {
-            case INTEGRAL_POR_PARTES:     rule = new ByPartsExpPolyIntegrator(false); break;
-            case INTEGRAL_SUSTITUCION:    rule = new SubstitutionIntegrator(false);   break;
-            case INTEGRAL_TRIGONOMETRICA: rule = new TrigSubstitutionIntegrator(false); break;
-            case INTEGRAL_RACIONAL_PFD:   rule = new RationalPFDIntegrator(false);    break;
-            case INTEGRAL_REGLA_POTENCIA:
-            case NINGUNO:
-            default:                      rule = new PowerRuleIntegrator(false);      break;
+            case INTEGRAL_POR_PARTES:                  rule = new ByPartsExpPolyIntegrator(definida); break;
+            case INTEGRAL_SUSTITUCION:                 rule = new SubstitutionIntegrator(definida);   break;
+            case INTEGRAL_TRIGONOMETRICA:              rule = new TrigSubstitutionIntegrator(definida); break;
+            case INTEGRAL_RACIONAL_PFD:                rule = new RationalPFDIntegrator(definida);    break;
+            case INTEGRAL_NUMERICA_SIMPSON_O_TRAPECIO: rule = new SimpsonDefiniteIntegrator();        break;
+            case INTEGRAL_REGLA_POTENCIA:              rule = new PowerRuleIntegrator(definida);      break;
+            default:                                   rule = null;                                   break;
         }
-        return rule.apply(raiz, rs);
+
+        if (rule == null) {
+            ResultadoResolucion out = new ResultadoResolucion();
+            out.pasos = new java.util.ArrayList<>();
+            out.resultado = raiz;
+            out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
+            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Método no aplicable"));
+            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+            return out;
+        }
+
+        ResultadoResolucion rr = rule.apply(raiz, rs);
+        if (rr != null && rr.resultado != null) return rr;
+
+        IntegratorRule pr = new PowerRuleIntegrator(definida);
+        ResultadoResolucion rrTry = pr.apply(raiz, rs);
+        if (rrTry != null && rrTry.resultado != null) return rrTry;
+
+        ResultadoResolucion out = new ResultadoResolucion();
+        out.pasos = new java.util.ArrayList<>();
+        out.resultado = raiz;
+        out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
+        out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Método no aplicable"));
+        out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+        return out;
     }
 
-    public static ResultadoResolucion resolverDefinida(NodoAST raiz, ResultadoSemantico rs, MetodoResolucion m) {
-        IntegratorRule rule;
-        switch (m) {
-            case INTEGRAL_POR_PARTES:                       rule = new ByPartsExpPolyIntegrator(true); break;
-            case INTEGRAL_SUSTITUCION:                      rule = new SubstitutionIntegrator(true);    break;
-            case INTEGRAL_TRIGONOMETRICA:                   rule = new TrigSubstitutionIntegrator(true); break;
-            case INTEGRAL_RACIONAL_PFD:                     rule = new RationalPFDIntegrator(true);     break;
-            case INTEGRAL_NUMERICA_SIMPSON_O_TRAPECIO:      rule = new SimpsonDefiniteIntegrator();     break;
-            case INTEGRAL_REGLA_POTENCIA:
-            case NINGUNO:
-            default:                                        rule = new PowerRuleIntegrator(true);       break;
-        }
-        return rule.apply(raiz, rs);
-    }
 }
