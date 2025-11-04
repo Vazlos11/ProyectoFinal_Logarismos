@@ -51,6 +51,7 @@ android {
 dependencies {
     implementation("org.matheclipse:matheclipse-core:3.0.0")
     implementation("com.github.judemanutd:katexview:1.0.2")
+    implementation("com.github.PhilJay:MPAndroidChart:3.1.0")
 
     implementation(libs.appcompat)
     implementation(libs.material)
