@@ -105,8 +105,10 @@ public class PlanificadorResolucion {
     }
 
     public static MetodoResolucion metodo(NodoAST raiz, ResultadoSemantico rs) {
+        if (esDefinicionFuncion(raiz)) return MetodoResolucion.EXPRESION_SIN_OBJETIVO;
         if (raiz == null || rs == null) return MetodoResolucion.NINGUNO;
         if (rs.errores != null && !rs.errores.isEmpty()) return MetodoResolucion.NINGUNO;
+        if (esAsignacionFuncion(raiz)) return MetodoResolucion.EXPRESION_SIN_OBJETIVO;
 
         List<NodoAST> eqs = extraerEcuaciones(raiz);
         if (rs.tipoPrincipal == TipoExpresion.T8_SISTEMA_EC || (eqs != null && eqs.size() >= 2)) {
@@ -661,8 +663,6 @@ public class PlanificadorResolucion {
 
         return MetodoResolucion.NINGUNO;
     }
-
-
     private static boolean requiereSustitucion(NodoAST n, String var) {
         if (n == null) return false;
         if (existeSustitucionSimple(n, var)) return true;
@@ -1680,7 +1680,41 @@ public class PlanificadorResolucion {
 
         return new GradoPolinomio(false, 0);
     }
+    private static boolean esDefinicionFuncion(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type != LexToken.Type.EQUAL || n.hijos.size() != 2) return false;
+        NodoAST l = n.hijos.get(0);
+        return esLadoIzqFuncion(l);
+    }
 
+    private static boolean esLadoIzqFuncion(NodoAST l) {
+        if (l == null || l.token == null) return false;
+        if (l.token.type == LexToken.Type.VARIABLE && l.hijos.size() == 1 && contieneSoloVariable(l.hijos.get(0))) return true;
+        if (l.token.type == LexToken.Type.VARIABLE && l.token.value != null &&
+                l.token.value.trim().matches("[a-zA-Z][a-zA-Z0-9_]*\\([a-zA-Z]\\)")) return true;
+        if (l.token.type == LexToken.Type.MUL && l.hijos.size() == 2) {
+            NodoAST a = l.hijos.get(0), b = l.hijos.get(1);
+            if (a != null && b != null && a.token != null && b.token != null) {
+                if (a.token.type == LexToken.Type.VARIABLE && b.token.type == LexToken.Type.VARIABLE &&
+                        a.hijos.isEmpty() && b.hijos.isEmpty()) {
+                    return a.token.value != null && a.token.value.matches("[a-zA-Z]") &&
+                            b.token.value != null && b.token.value.matches("[a-zA-Z]");
+                }
+            }
+        }
+        return false;
+    }
+    private static boolean esAsignacionFuncion(NodoAST raiz) {
+        if (raiz == null || raiz.token == null) return false;
+        if (raiz.token.type != LexToken.Type.EQUAL || raiz.hijos.size() != 2) return false;
+        return esLadoIzqFuncion(raiz.hijos.get(0));
+    }
+    private static boolean contieneSoloVariable(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type == LexToken.Type.VARIABLE && n.hijos.isEmpty()) return true;
+        if (n.hijos.size() == 1) return contieneSoloVariable(n.hijos.get(0));
+        return false;
+    }
     private static int gradoPolinomioEn(NodoAST n, String var) {
         GradoPolinomio g = gradoSiPolinomio(n, var);
         return g.ok ? g.grado : -1;

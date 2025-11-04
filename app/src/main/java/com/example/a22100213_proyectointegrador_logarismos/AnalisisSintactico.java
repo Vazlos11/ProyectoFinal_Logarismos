@@ -119,16 +119,31 @@ public class AnalisisSintactico {
     private NodoAST parsePostfix(NodoAST base) {
         while (true) {
             LexToken t = peek();
-            if (t.type == LexToken.Type.FACTORIAL || t.type == LexToken.Type.PERCENT || t.type == LexToken.Type.PRIME) {
+
+            if (t.type == LexToken.Type.PAREN_OPEN &&
+                    base != null && base.token != null &&
+                    base.token.type == LexToken.Type.VARIABLE) {
+                next();
+                NodoAST arg = parseExpr(0);
+                expect(LexToken.Type.PAREN_CLOSE);
+                NodoAST call = new NodoAST(new LexToken(base.token.type, base.token.value, base.token.prioridad));
+                call.addHijo(arg);
+                base = call;
+                continue;
+            }
+
+            if (t.type == LexToken.Type.FACTORIAL ||
+                    t.type == LexToken.Type.PERCENT ||
+                    t.type == LexToken.Type.PRIME) {
                 next();
                 base = makeNode(t, base);
                 continue;
             }
+
             break;
         }
         return base;
     }
-
     private NodoAST parseFuncArg() {
         if (peek().type == LexToken.Type.PAREN_OPEN) {
             next();

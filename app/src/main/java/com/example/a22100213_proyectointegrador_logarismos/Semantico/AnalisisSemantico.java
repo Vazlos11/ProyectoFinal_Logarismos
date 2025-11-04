@@ -19,6 +19,7 @@ public class AnalisisSemantico {
             rs.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (contiene(raiz, LexToken.Type.DERIV) || contiene(raiz, LexToken.Type.PRIME)) {
@@ -27,6 +28,7 @@ public class AnalisisSemantico {
             validarDerivada(rs, d);
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             llenarSubtipos(rs, raiz);
             return rs;
         }
@@ -36,6 +38,7 @@ public class AnalisisSemantico {
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (contiene(raiz, LexToken.Type.INTEGRAL_INDEF)) {
@@ -44,6 +47,7 @@ public class AnalisisSemantico {
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (raiz.token.type == LexToken.Type.SYSTEM || contarEcuaciones(raiz) > 1) {
@@ -53,9 +57,20 @@ public class AnalisisSemantico {
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (raiz.token.type == LexToken.Type.EQUAL || contiene(raiz, LexToken.Type.EQUAL)) {
+            if (raiz.token.type == LexToken.Type.EQUAL && esAsignacionFuncion(raiz)) {
+                rs.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
+                rs.varIndep = argDeAsignacionFuncion(raiz);
+                validarT2(rs, raiz);
+                validarImaginarios(rs, raiz);
+                validarDominiosGenerales(rs, raiz);
+                llenarSubtipos(rs, raiz);
+                determinarGraficabilidad(rs, raiz);
+                return rs;
+            }
             Set<String> vs = varsNoI(raiz);
             String v = vs.isEmpty() ? "x" : vs.iterator().next();
             int g = 0;
@@ -78,6 +93,7 @@ public class AnalisisSemantico {
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (contiene(raiz, LexToken.Type.IMAGINARY)) {
@@ -85,6 +101,7 @@ public class AnalisisSemantico {
             validarImaginarios(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         if (esT1Aritmetica(raiz)) {
@@ -92,6 +109,7 @@ public class AnalisisSemantico {
             validarT1(rs, raiz);
             validarDominiosGenerales(rs, raiz);
             llenarSubtipos(rs, raiz);
+            determinarGraficabilidad(rs, raiz);
             return rs;
         }
         rs.tipoPrincipal = TipoExpresion.T2_ALGEBRA_FUNC;
@@ -99,8 +117,10 @@ public class AnalisisSemantico {
         validarImaginarios(rs, raiz);
         validarDominiosGenerales(rs, raiz);
         llenarSubtipos(rs, raiz);
+        determinarGraficabilidad(rs, raiz);
         return rs;
     }
+
 
     private static boolean contiene(NodoAST n, LexToken.Type t) {
         if (n == null) return false;
@@ -619,35 +639,30 @@ public class AnalisisSemantico {
 
     private static boolean esConstante(NodoAST n, Set<String> vs) {
         if (n == null) return true;
-        if (n.token != null && n.token.type == LexToken.Type.VARIABLE && n.hijos.isEmpty() && n.token.value != null && vs.contains(n.token.value)) return false;
-        if (n.token != null && (n.token.type == LexToken.Type.INTEGER || n.token.type == LexToken.Type.DECIMAL || n.token.type == LexToken.Type.CONST_E || n.token.type == LexToken.Type.CONST_PI)) return true;
-        if (n.token == null) return true;
-        LexToken.Type t = n.token.type;
-        if (t == LexToken.Type.SUM || t == LexToken.Type.SUB) {
-            return esConstante(sub(n, 0), vs) && esConstante(sub(n, 1), vs);
+        if (n.token != null && n.token.type == LexToken.Type.VARIABLE && n.hijos.isEmpty() && n.token.value != null) {
+            return !vs.contains(n.token.value);
         }
-        if (t == LexToken.Type.MUL) {
-            return esConstante(sub(n, 0), vs) && esConstante(sub(n, 1), vs);
+        if (n.token != null) {
+            LexToken.Type t = n.token.type;
+            if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI) return true;
         }
-        if (t == LexToken.Type.DIV) {
-            return esConstante(sub(n, 0), vs) && esConstante(sub(n, 1), vs);
+        for (NodoAST h : n.hijos) {
+            if (!esConstante(h, vs)) return false;
         }
-        if (t == LexToken.Type.EXP) {
-            if (!esConstante(sub(n, 1), vs)) return false;
-            return esConstante(sub(n, 0), vs);
-        }
-        return !varsNoI(n).removeAll(vs);
+        return true;
     }
-
     private static boolean esLinealMultivariable(NodoAST n, Set<String> vs) {
         if (n == null || n.token == null) return true;
         LexToken.Type t = n.token.type;
+
         if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL || t == LexToken.Type.CONST_E || t == LexToken.Type.CONST_PI) return true;
-        if (t == LexToken.Type.VARIABLE && n.hijos.isEmpty()) return !vs.contains(n.token.value) || true;
+        if (t == LexToken.Type.VARIABLE && n.hijos.isEmpty()) return true;
+
         if (t == LexToken.Type.SUM || t == LexToken.Type.SUB) {
             for (NodoAST h : n.hijos) if (!esLinealMultivariable(h, vs)) return false;
             return true;
         }
+
         if (t == LexToken.Type.MUL) {
             boolean aVar = contieneAlgunoDe(sub(n, 0), vs);
             boolean bVar = contieneAlgunoDe(sub(n, 1), vs);
@@ -656,20 +671,25 @@ public class AnalisisSemantico {
             if (bVar) return esLinealMultivariable(sub(n, 1), vs) && esConstante(sub(n, 0), vs);
             return esLinealMultivariable(sub(n, 0), vs) && esLinealMultivariable(sub(n, 1), vs);
         }
+
         if (t == LexToken.Type.DIV) {
             if (!esConstante(sub(n, 1), vs)) return false;
             return esLinealMultivariable(sub(n, 0), vs);
         }
+
         if (t == LexToken.Type.EXP) {
             Double e = evalConst(sub(n, 1));
             if (e == null) return false;
             if (Math.abs(e - 1.0) < 1e-12) return esLinealMultivariable(sub(n, 0), vs);
             return esConstante(sub(n, 0), vs);
         }
+
         if (tiposFunciones().contains(t) || t == LexToken.Type.RADICAL || t == LexToken.Type.FACTORIAL || t == LexToken.Type.ABS) return false;
+
         for (NodoAST h : n.hijos) if (!esLinealMultivariable(h, vs)) return false;
         return true;
     }
+
 
     private static boolean contieneAlgunoDe(NodoAST n, Set<String> vs) {
         if (n == null) return false;
@@ -677,4 +697,96 @@ public class AnalisisSemantico {
         for (NodoAST h : n.hijos) if (contieneAlgunoDe(h, vs)) return true;
         return false;
     }
+    private static void determinarGraficabilidad(ResultadoSemantico rs, NodoAST raiz) {
+        rs.graficable = false;
+        rs.modoGraf = (rs.modoGraf == null) ? "" : rs.modoGraf;
+        String vDefault = (rs.varIndep == null || rs.varIndep.isEmpty()) ? "x" : rs.varIndep;
+
+        if (raiz != null && raiz.token != null && raiz.token.type == LexToken.Type.EQUAL && esAsignacionFuncion(raiz)) {
+            String arg = argDeAsignacionFuncion(raiz);
+            java.util.Set<String> vr = varsNoI(sub(raiz, 1));
+            vr.remove(arg);
+            if (!contiene(raiz, LexToken.Type.IMAGINARY)
+                    && !contiene(raiz, LexToken.Type.FACTORIAL)
+                    && !contiene(raiz, LexToken.Type.PERCENT)
+                    && vr.isEmpty()) {
+                rs.graficable = true;
+                rs.varIndep = arg;
+                rs.modoGraf = "Y_FX";
+            }
+            return;
+        }
+
+        if (rs.tipoPrincipal == TipoExpresion.T2_ALGEBRA_FUNC) {
+            java.util.Set<String> vs = varsNoI(raiz);
+            if (vs.size() == 1
+                    && !contiene(raiz, LexToken.Type.IMAGINARY)
+                    && !contiene(raiz, LexToken.Type.FACTORIAL)
+                    && !contiene(raiz, LexToken.Type.PERCENT)) {
+                rs.graficable = true;
+                rs.varIndep = vs.iterator().next();
+                rs.modoGraf = "Y_FX";
+            }
+            return;
+        }
+
+        if (rs.tipoPrincipal == TipoExpresion.T3_DERIVADA) {
+            rs.graficable = true;
+            rs.varIndep = vDefault;
+            rs.modoGraf = "Y_FX";
+            return;
+        }
+
+        if (rs.tipoPrincipal == TipoExpresion.T5_INTEGRAL_DEFINIDA) {
+            IntegralInfo ii = localizarIntegral(raiz, true);
+            if (ii != null && ii.dif != null && ii.dif.token != null) {
+                String v = extraerDxVar(ii.dif.token.value);
+                Double a = evalConst(ii.inf);
+                Double b = evalConst(ii.sup);
+                java.util.Set<String> bodyVars = varsNoI(ii.cuerpo);
+                bodyVars.remove(v);
+                if (a != null && b != null && Math.abs(a - b) > 1e-15 && bodyVars.isEmpty()) {
+                    rs.graficable = true;
+                    rs.varIndep = v;
+                    rs.modoGraf = "AREA_DEF_INTEGRAL:" + a + ":" + b;
+                }
+            }
+            return;
+        }
+
+        if (rs.tipoPrincipal == TipoExpresion.T7_DESPEJE_POLINOMICO) {
+            java.util.Set<String> vs = varsNoI(raiz);
+            if (vs.size() == 1) {
+                rs.graficable = true;
+                rs.varIndep = vs.iterator().next();
+                rs.modoGraf = "Y_FX_EC_IGUAL_0";
+            }
+        }
+    }
+
+    private static boolean esTokenFuncionApp(LexToken tok) {
+        if (tok == null || tok.type != LexToken.Type.VARIABLE || tok.value == null) return false;
+        String v = tok.value.trim();
+        return v.matches("[a-zA-Z][a-zA-Z0-9_]*\\([a-zA-Z]\\)");
+    }
+
+    private static boolean esAsignacionFuncion(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type != LexToken.Type.EQUAL || n.hijos.size() != 2) return false;
+        NodoAST L = sub(n, 0);
+        return L != null && L.token != null && esTokenFuncionApp(L.token);
+    }
+
+    private static String argDeTokenFuncion(LexToken tok) {
+        String v = tok.value.trim();
+        int p1 = v.indexOf('(');
+        int p2 = v.indexOf(')', p1 + 1);
+        if (p1 >= 0 && p2 > p1 + 1) return v.substring(p1 + 1, p2);
+        return "x";
+    }
+
+    private static String argDeAsignacionFuncion(NodoAST n) {
+        return esAsignacionFuncion(n) ? argDeTokenFuncion(sub(n, 0).token) : "x";
+    }
+
 }

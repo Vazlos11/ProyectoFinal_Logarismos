@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
 import android.widget.TextView;
 import android.widget.ViewFlipper;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.t2algebra.T2AlgebraResolver;
@@ -29,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
     private String lastMetodo = "";
     private KatexView katexView;
     private KatexView answer;
+    private String lastGrafModo = "";
+    private String lastGrafVarX = "x";
     private ViewFlipper keyboardsFlipp;
     private boolean hasResultShown = false;
     private static final String PREFS = "logarismos_prefs";
@@ -58,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i <= 9; i++) latexMap.put(String.valueOf(i), String.valueOf(i));
         latexMap.put("+", "+");
         latexMap.put("-", "-");
+        latexMap.put("f()", "f()");
         latexMap.put("*", "\\cdot ");
         latexMap.put("/", "/");
         latexMap.put("%", "\\%");
@@ -166,6 +170,21 @@ public class MainActivity extends AppCompatActivity {
             sb.append(t.toLatex());
             return;
         }
+        if (t.value != null && t.value.startsWith("\\func:")) {
+            String name = t.value.substring("\\func:".length());
+            sb.append(name);
+            if (!t.children.isEmpty()) {
+                Token arg = t.children.get(0);
+                sb.append("(");
+                if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
+                else appendTokenWithCursor(sb, arg);
+                sb.append(")");
+            } else {
+                sb.append("()");
+            }
+            return;
+        }
+
         switch (t.value) {
             case "()":
                 sb.append("(");
@@ -344,6 +363,16 @@ public class MainActivity extends AppCompatActivity {
     public void ins_char(View view) {
         Button b = (Button) view;
         String symbol = b.getText().toString();
+
+        if ("f(x)".equals(symbol)) {
+            insertFunctionSequence(true);
+            return;
+        }
+        if ("f()".equals(symbol)) {
+            insertFunctionSequence(false);
+            return;
+        }
+
         String latexEquivalent = latexMap.getOrDefault(symbol, symbol);
         Token newToken;
 
@@ -374,6 +403,23 @@ public class MainActivity extends AppCompatActivity {
             insertToken(newToken);
             currentContainer = parenGroup;
             cursorIndex = 0;
+            updateView();
+            return;
+        }
+        if ("f(x)".equals(latexEquivalent) || "f()".equals(latexEquivalent)) {
+            Token func = Token.container("\\func:f");
+            Token parenGroup = Token.container("()");
+            parenGroup.parent = func;
+            func.children.add(parenGroup);
+            insertToken(func);
+            currentContainer = parenGroup;
+            cursorIndex = 0;
+            if ("f(x)".equals(latexEquivalent)) {
+                Token xTok = Token.simple("x");
+                xTok.parent = parenGroup;
+                parenGroup.children.add(xTok);
+                cursorIndex = parenGroup.children.size();
+            }
             updateView();
             return;
         }
@@ -626,6 +672,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Token preferInnerEditable(Token cont) {
+        if (cont != null && cont.value != null && cont.value.startsWith("\\func:"))
+            return cont.children.size() > 0 ? cont.children.get(0) : null;
         if (cont == null || !cont.isContainer) return null;
         if ("\\system".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
         if ("\\int_def".equals(cont.value)) return cont.children.size() > 1 ? cont.children.get(1) : null;
@@ -764,7 +812,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!currentContainer.children.isEmpty()) {
                     currentContainer = currentContainer.children.get(0);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             } else if (delta < 0) {
@@ -773,7 +821,7 @@ public class MainActivity extends AppCompatActivity {
                 int idx = pList.indexOf(currentContainer);
                 currentContainer = p;
                 cursorIndex = idx;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -786,32 +834,32 @@ public class MainActivity extends AppCompatActivity {
             if (delta > 0) {
                 if (cursorIndex < childList.size()) {
                     cursorIndex++;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild < sys.children.size() - 1) {
                     currentContainer = sys.children.get(idxChild + 1);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
 
             if (delta < 0) {
                 if (cursorIndex > 0) {
                     cursorIndex--;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild > 0) {
                     currentContainer = sys.children.get(idxChild - 1);
                     cursorIndex = currentContainer.children.size();
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -821,14 +869,14 @@ public class MainActivity extends AppCompatActivity {
                 if (currentContainer.children.size() > 1) {
                     currentContainer = currentContainer.children.get(1);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             } else if (delta < 0) {
                 if (currentContainer.children.size() > 2) {
                     currentContainer = currentContainer.children.get(2);
                     cursorIndex = currentContainer.children.size();
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             }
@@ -842,19 +890,19 @@ public class MainActivity extends AppCompatActivity {
             if (delta > 0) {
                 if (cursorIndex < childList.size()) {
                     cursorIndex++;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 1) {
                     currentContainer = p.children.get(0);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 0) {
                     currentContainer = p.children.get(2);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 2) {
@@ -863,7 +911,7 @@ public class MainActivity extends AppCompatActivity {
                     int idx = gpList.indexOf(p);
                     currentContainer = gp;
                     cursorIndex = idx + 1;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             }
@@ -871,19 +919,19 @@ public class MainActivity extends AppCompatActivity {
             if (delta < 0) {
                 if (cursorIndex > 0) {
                     cursorIndex--;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 0) {
                     currentContainer = p.children.get(1);
                     cursorIndex = p.children.get(1).children.size();
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 2) {
                     currentContainer = p.children.get(0);
                     cursorIndex = p.children.get(0).children.size();
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 1) {
@@ -892,7 +940,7 @@ public class MainActivity extends AppCompatActivity {
                     int idx = gpList.indexOf(p);
                     currentContainer = gp;
                     cursorIndex = idx;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             }
@@ -903,13 +951,13 @@ public class MainActivity extends AppCompatActivity {
                 Token body = currentContainer.children.get(0);
                 currentContainer = body;
                 cursorIndex = body.children.size();
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             } else if (delta < 0) {
                 Token body = currentContainer.children.get(0);
                 currentContainer = body;
                 cursorIndex = 0;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -919,7 +967,7 @@ public class MainActivity extends AppCompatActivity {
                 if (currentContainer.children.size() > 0) {
                     currentContainer = currentContainer.children.get(0);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
             } else if (delta < 0) {
@@ -928,7 +976,7 @@ public class MainActivity extends AppCompatActivity {
                 int idx = pList.indexOf(currentContainer);
                 currentContainer = p;
                 cursorIndex = idx;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -941,13 +989,13 @@ public class MainActivity extends AppCompatActivity {
             if (delta > 0) {
                 if (cursorIndex < childList.size()) {
                     cursorIndex++;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 0 && frac.children.size() > 1) {
                     currentContainer = frac.children.get(1);
                     cursorIndex = 0;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 Token gp = frac.parent;
@@ -955,20 +1003,20 @@ public class MainActivity extends AppCompatActivity {
                 int idx = gpList.indexOf(frac);
                 currentContainer = gp;
                 cursorIndex = idx + 1;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
 
             if (delta < 0) {
                 if (cursorIndex > 0) {
                     cursorIndex--;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 if (idxChild == 1) {
                     currentContainer = frac.children.get(0);
                     cursorIndex = currentContainer.children.size();
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 Token gp = frac.parent;
@@ -976,7 +1024,7 @@ public class MainActivity extends AppCompatActivity {
                 int idx = gpList.indexOf(frac);
                 currentContainer = gp;
                 cursorIndex = idx;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -987,7 +1035,7 @@ public class MainActivity extends AppCompatActivity {
                 currentContainer = g;
                 if (delta > 0) cursorIndex = g.children.size();
                 else cursorIndex = 0;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -999,7 +1047,7 @@ public class MainActivity extends AppCompatActivity {
             if (delta > 0) {
                 if (cursorIndex < childList.size()) {
                     cursorIndex++;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 Token gp = exp.parent;
@@ -1007,14 +1055,14 @@ public class MainActivity extends AppCompatActivity {
                 int idx = gpList.indexOf(exp);
                 currentContainer = gp;
                 cursorIndex = idx + 1;
-                updateView();
+                updateViewAfterMove(delta);
                 return;
             }
 
             if (delta < 0) {
                 if (cursorIndex > 0) {
                     cursorIndex--;
-                    updateView();
+                    updateViewAfterMove(delta);
                     return;
                 }
                 Token gp = exp.parent;
@@ -1022,7 +1070,111 @@ public class MainActivity extends AppCompatActivity {
                 int idx = gpList.indexOf(exp);
                 currentContainer = gp;
                 cursorIndex = idx;
-                updateView();
+                updateViewAfterMove(delta);
+                return;
+            }
+        }
+
+        if (currentContainer != null && currentContainer.isContainer && "()".equals(currentContainer.value)
+                && currentContainer.parent != null && isFuncContainer(currentContainer.parent)) {
+            Token arg = currentContainer;
+            Token func = arg.parent;
+            List<Token> argList = arg.children;
+
+            if (delta > 0) {
+                if (cursorIndex < argList.size()) {
+                    cursorIndex++;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                Token gp = func.parent;
+                List<Token> gpList = (gp == null) ? rootTokens : gp.children;
+                int idx = gpList.indexOf(func);
+                currentContainer = gp;
+                cursorIndex = idx + 1;
+                updateViewAfterMove(delta);
+                return;
+            }
+
+            if (delta < 0) {
+                if (cursorIndex > 0) {
+                    cursorIndex--;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                Token gp = func.parent;
+                List<Token> gpList = (gp == null) ? rootTokens : gp.children;
+                int idx = gpList.indexOf(func);
+                currentContainer = gp;
+                cursorIndex = idx;
+                updateViewAfterMove(delta);
+                return;
+            }
+        }
+
+        if (currentContainer != null && currentContainer.isContainer && "{}".equals(currentContainer.value)
+                && currentContainer.parent != null
+                && ("\\log_{2}".equals(currentContainer.parent.value) || "\\log_{10}".equals(currentContainer.parent.value))) {
+            Token base = currentContainer;
+            Token logc = base.parent;
+            List<Token> baseList = base.children;
+
+            if (delta > 0) {
+                if (cursorIndex < baseList.size()) {
+                    cursorIndex++;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                if (logc.children.size() > 1) {
+                    currentContainer = logc.children.get(1);
+                    cursorIndex = 0;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                Token gp = logc.parent;
+                List<Token> gpList = (gp == null) ? rootTokens : gp.children;
+                int idx = gpList.indexOf(logc);
+                currentContainer = gp;
+                cursorIndex = idx + 1;
+                updateViewAfterMove(delta);
+                return;
+            }
+
+            if (delta < 0) {
+                if (cursorIndex > 0) {
+                    cursorIndex--;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                Token gp = logc.parent;
+                List<Token> gpList = (gp == null) ? rootTokens : gp.children;
+                int idx = gpList.indexOf(logc);
+                currentContainer = gp;
+                cursorIndex = idx;
+                updateViewAfterMove(delta);
+                return;
+            }
+        }
+
+        if (currentContainer != null && currentContainer.isContainer &&
+                ("()".equals(currentContainer.value) || "[]".equals(currentContainer.value) ||
+                        "\\{ \\}".equals(currentContainer.value) || "\\lvert".equals(currentContainer.value) ||
+                        "^group".equals(currentContainer.value) || "{}".equals(currentContainer.value))) {
+            if (delta > 0 && cursorIndex == currentContainer.children.size()) {
+                Token p = currentContainer.parent;
+                List<Token> pList = (p == null) ? rootTokens : p.children;
+                int idx = pList.indexOf(currentContainer);
+                currentContainer = p;
+                cursorIndex = idx + 1;
+                updateViewAfterMove(delta);
+                return;
+            } else if (delta < 0 && cursorIndex == 0) {
+                Token p = currentContainer.parent;
+                List<Token> pList = (p == null) ? rootTokens : p.children;
+                int idx = pList.indexOf(currentContainer);
+                currentContainer = p;
+                cursorIndex = idx;
+                updateViewAfterMove(delta);
                 return;
             }
         }
@@ -1052,7 +1204,7 @@ public class MainActivity extends AppCompatActivity {
                                 cursorIndex = 0;
                             }
                         }
-                        updateView();
+                        updateViewAfterMove(delta);
                         return;
                     }
                 }
@@ -1084,60 +1236,75 @@ public class MainActivity extends AppCompatActivity {
                             currentContainer = (g != null) ? g : prev;
                             cursorIndex = currentContainer.children.size();
                         } else {
-                            currentContainer = prev;
-                            cursorIndex = prev.children.size();
+                            Token inner = preferInnerEditable(prev);
+                            if (inner != null) {
+                                currentContainer = inner;
+                                cursorIndex = inner.children.size();
+                            } else {
+                                currentContainer = prev;
+                                cursorIndex = prev.children.size();
+                            }
                         }
-                        updateView();
+                        updateViewAfterMove(delta);
                         return;
                     }
                 }
             }
+            updateViewAfterMove(delta);
+            return;
+        }
+    }
+
+    private boolean isFuncContainer(Token t) {
+        if (t == null || !t.isContainer || t.value == null) return false;
+        if (t.value.startsWith("\\func:")) return true;
+        switch (t.value) {
+            case "\\sin": case "\\cos": case "\\tan": case "\\cot": case "\\sec": case "\\csc":
+            case "\\arcsin": case "\\arccos": case "\\arctan": case "\\arccot": case "\\arcsec": case "\\arccsc":
+            case "\\log": case "\\ln": case "\\log_{2}": case "\\log_{10}":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void updateViewAfterMove(int delta) {
+        updateView();
+        HorizontalScrollView hs = findViewById(R.id.hs_katex_text);
+        if (hs != null) {
+            hs.post(() -> hs.fullScroll(delta > 0 ? View.FOCUS_RIGHT : View.FOCUS_LEFT));
+        }
+    }
+
+    private void insertFunctionSequence(boolean withX) {
+        List<Token> list = (currentContainer == null) ? rootTokens : currentContainer.children;
+        int pos = cursorIndex;
+
+        Token func = Token.container("\\func:f");
+        Token arg = Token.container("()");
+        arg.parent = func;
+        func.children.add(arg);
+
+        if (withX) {
+            Token x = Token.simple("x");
+            x.parent = arg;
+            arg.children.add(x);
         }
 
-        if (delta < 0) {
-            if (currentContainer != null) {
-                Token parent = currentContainer.parent;
-                List<Token> parentList = (parent == null) ? rootTokens : parent.children;
-                int idx = parentList.indexOf(currentContainer);
-                if (parent != null && "\\int_def".equals(parent.value)) {
-                    currentContainer = parent.children.get(1);
-                    cursorIndex = currentContainer.children.size();
-                } else if (parent != null && "\\int".equals(parent.value)) {
-                    currentContainer = parent.children.get(0);
-                    cursorIndex = currentContainer.children.size();
-                } else if (parent != null && "\\system".equals(parent.value)) {
-                    currentContainer = parent;
-                    cursorIndex = idx;
-                } else {
-                    currentContainer = parent;
-                    cursorIndex = idx;
-                }
-            }
+        func.parent = currentContainer;
+        list.add(pos, func);
+
+        if (withX) {
+            currentContainer = (currentContainer == null) ? null : currentContainer;
+            cursorIndex = pos + 1;
         } else {
-            if (currentContainer != null) {
-                Token parent = currentContainer.parent;
-                List<Token> parentList = (parent == null) ? rootTokens : parent.children;
-                int idx = parentList.indexOf(currentContainer);
-                if (parent != null && "\\int_def".equals(parent.value)) {
-                    currentContainer = parent.children.get(0);
-                    cursorIndex = 0;
-                } else if (parent != null && "\\int".equals(parent.value)) {
-                    Token gp = parent.parent;
-                    List<Token> gpList = (gp == null) ? rootTokens : gp.children;
-                    int i = gpList.indexOf(parent);
-                    currentContainer = gp;
-                    cursorIndex = i + 1;
-                } else if (parent != null && "\\system".equals(parent.value)) {
-                    currentContainer = parent;
-                    cursorIndex = idx + 1;
-                } else {
-                    currentContainer = parent;
-                    cursorIndex = idx + 1;
-                }
-            }
+            currentContainer = arg;
+            cursorIndex = 0;
         }
-        updateView();
+        updateViewAfterMove(+1);
     }
+
+
 
     public void moveCursorLeft(View view) { moveCursorDelta(-1); }
     public void moveCursorRight(View view) { moveCursorDelta(1); }
@@ -1153,6 +1320,9 @@ public class MainActivity extends AppCompatActivity {
             AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
             NodoAST arbol = parser.parse();
             ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
+            lastGraphable = rs.graficable;
+            lastGrafModo  = (rs.modoGraf == null) ? "" : rs.modoGraf;
+            lastGrafVarX  = (rs.varIndep == null || rs.varIndep.isEmpty()) ? "x" : rs.varIndep;
 
             if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
                 StringBuilder sbErr = new StringBuilder();
@@ -1211,11 +1381,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t = rs.tipoPrincipal;
-                lastGraphable =
-                        t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T5_INTEGRAL_DEFINIDA
-                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T7_DESPEJE_POLINOMICO
-                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T2_ALGEBRA_FUNC
-                                || t == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T3_DERIVADA;
+                lastGraphable = rs.graficable;
 
                 if (btnViewSolution != null) btnViewSolution.setVisibility(hasResultShown ? View.VISIBLE : View.GONE);
             } else {
@@ -1265,11 +1431,13 @@ public class MainActivity extends AppCompatActivity {
 
     public void openSolution(View v) {
         if (lastStepsLatex == null) lastStepsLatex = new ArrayList<>();
-        Intent i = new Intent(this, SolucionActivity.class);
-        i.putStringArrayListExtra(SolucionActivity.EXTRA_STEPS_LATEX, lastStepsLatex);
-        i.putExtra(SolucionActivity.EXTRA_EXPR_LATEX, lastExprLatex);
-        i.putExtra(SolucionActivity.EXTRA_GRAFICABLE, lastGraphable);
-        i.putExtra(SolucionActivity.EXTRA_METODO, lastMetodo);
+        Intent i = new Intent(this, com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.class);
+        i.putStringArrayListExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_STEPS_LATEX, lastStepsLatex);
+        i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_EXPR_LATEX, lastExprLatex);
+        i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_GRAFICABLE, lastGraphable);
+        i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_GRAF_MODO, lastGrafModo);
+        i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_GRAF_VARX, lastGrafVarX);
+        i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_METODO, lastMetodo);
         startActivity(i);
     }
 

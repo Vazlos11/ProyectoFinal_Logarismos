@@ -132,6 +132,22 @@ public class AnalisisLexico {
     }
 
     private static void lexFromContainer(Token t, List<LexToken> out) {
+        if (t.value != null && t.value.startsWith("\\func:")) {
+            String name = t.value.substring("\\func:".length());
+            emit(out, LexToken.Type.VARIABLE, name);
+            emit(out, LexToken.Type.PAREN_OPEN, "(");
+            if (!t.children.isEmpty()) {
+                Token arg = t.children.get(0);
+                if (arg != null && arg.isContainer && "()" .equals(arg.value)) {
+                    lexFromList(arg.children, out);
+                } else if (arg != null) {
+                    lexFromToken(arg, out);
+                }
+            }
+            emit(out, LexToken.Type.PAREN_CLOSE, ")");
+            return;
+        }
+
         switch (t.value) {
             case "\\exp":
                 emit(out, LexToken.Type.EXP, "^");
@@ -225,7 +241,7 @@ public class AnalisisLexico {
                 emit(out, LexToken.Type.PAREN_OPEN, "(");
                 if (t.children.size() > 2 && t.children.get(2) != null) {
                     Token body = t.children.get(2);
-                    if (body.isContainer && "()".equals(body.value)) {
+                    if (body.isContainer && "()" .equals(body.value)) {
                         lexFromList(body.children, out);
                     } else {
                         lexFromToken(body, out);
@@ -238,13 +254,12 @@ public class AnalisisLexico {
                 }
                 break;
 
-
             case "\\int":
                 emit(out, LexToken.Type.INTEGRAL_INDEF, "∫");
                 emit(out, LexToken.Type.PAREN_OPEN, "(");
                 if (t.children.size() > 0) {
                     Token body = t.children.get(0);
-                    if (body != null && body.isContainer && "()".equals(body.value)) {
+                    if (body != null && body.isContainer && "()" .equals(body.value)) {
                         lexFromList(body.children, out);
                     } else if (body != null) {
                         lexFromToken(body, out);
@@ -261,7 +276,7 @@ public class AnalisisLexico {
                 emit(out, LexToken.Type.SYSTEM_BEGIN, "{");
                 for (int r = 0; r < t.children.size(); r++) {
                     Token row = t.children.get(r);
-                    if (row != null && row.isContainer && "()".equals(row.value)) {
+                    if (row != null && row.isContainer && "()" .equals(row.value)) {
                         for (Token cell : row.children) lexFromToken(cell, out);
                     } else if (row != null) {
                         lexFromToken(row, out);
@@ -317,6 +332,7 @@ public class AnalisisLexico {
                 break;
         }
     }
+
 
     private static void lexFromToken(Token t, List<LexToken> out) {
         if (t.isContainer) lexFromContainer(t, out);
@@ -459,13 +475,18 @@ public class AnalisisLexico {
         return r;
     }
 
-
     private static boolean needsMulBetween(LexToken a, LexToken b) {
         if (a == null || b == null) return false;
+
+        if (a.type == LexToken.Type.VARIABLE && b.type == LexToken.Type.PAREN_OPEN)
+            return false;
+
         if (!leftImplicitOk(a)) return false;
         if (!rightImplicitOk(b)) return false;
+
         if (b.type == LexToken.Type.EXP) return false;
         if (b.type == LexToken.Type.DIFFERENTIAL) return false;
+
         return true;
     }
 
@@ -496,4 +517,5 @@ public class AnalisisLexico {
                 return false;
         }
     }
+
 }

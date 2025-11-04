@@ -19,10 +19,12 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 public class SolucionActivity extends AppCompatActivity {
-    public static final String EXTRA_EXPR_LATEX = "expr_latex";
     public static final String EXTRA_STEPS_LATEX = "steps_latex";
+    public static final String EXTRA_EXPR_LATEX = "expr_latex";
     public static final String EXTRA_GRAFICABLE = "graficable";
-    public static final String EXTRA_METODO = "metodo_aplicado";
+    public static final String EXTRA_GRAF_MODO = "graf_modo";
+    public static final String EXTRA_GRAF_VARX = "graf_varx";
+    public static final String EXTRA_METODO = "metodo";
 
     KatexView kvProblema;
     RecyclerView rvPasos;

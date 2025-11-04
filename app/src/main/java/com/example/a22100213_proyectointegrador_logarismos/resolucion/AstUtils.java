@@ -234,19 +234,29 @@ public class AstUtils {
         var seen = TEX_SEEN.get();
         if (n != null && seen.containsKey(n)) return "\\dots";
         if (depth > MAX_SERIALIZE_DEPTH) return "\\dots";
-        if (n != null && n.token != null && n.token.type == LexToken.Type.VARIABLE && n.hijos.size() == 1) {
-            String name = n.token.value;
-            if ("Si".equals(name)) {
-                return "\\operatorname{Si}\\left(" + toTeX(n.hijos.get(0)) + "\\right)";
-            }
-        }
+
 
         try {
             if (n != null) seen.put(n, Boolean.TRUE);
             if (n == null || n.token == null) return "";
             LexToken.Type t = n.token.type;
             if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) return n.token.value;
-            if (t == LexToken.Type.VARIABLE) return n.token.value == null ? "x" : n.token.value;
+            if (t == LexToken.Type.VARIABLE) {
+                if (n.hijos.size() == 1) {
+                    String name = (n.token.value == null) ? "" : n.token.value;
+                    String arg  = toTeX(n.hijos.get(0), depth + 1);
+                    if ("Si".equals(name)) return "\\operatorname{Si}\\left(" + arg + "\\right)";
+                    return name + "\\left(" + arg + "\\right)";
+                }
+                return (n.token.value == null || n.token.value.isEmpty()) ? "x" : n.token.value;
+            }
+            if (n != null && n.token != null && n.token.type == LexToken.Type.VARIABLE && n.hijos.size() == 1) {
+                String name = n.token.value == null ? "" : n.token.value;
+                String arg = toTeX(n.hijos.get(0), depth + 1);
+                if ("Si".equals(name)) return "\\operatorname{Si}\\left(" + arg + "\\right)";
+                return name + "\\left(" + arg + "\\right)";
+            }
+
             if (t == LexToken.Type.CONST_E) return "e";
             if (t == LexToken.Type.CONST_PI) return "\\pi";
             if (t == LexToken.Type.IMAGINARY) return (n.token.value == null || n.token.value.isEmpty()) ? "i" : n.token.value;
