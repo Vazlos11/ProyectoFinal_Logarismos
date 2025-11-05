@@ -45,6 +45,9 @@ public class SolucionActivity extends AppCompatActivity {
         ArrayList<String> pasosRaw = getIntent().getStringArrayListExtra(EXTRA_STEPS_LATEX);
         boolean graficable = getIntent().getBooleanExtra(EXTRA_GRAFICABLE, false);
         String metodo = getIntent().getStringExtra(EXTRA_METODO);
+        final String grafModo = getIntent().getStringExtra(EXTRA_GRAF_MODO);
+        final String grafVarX = getIntent().getStringExtra(EXTRA_GRAF_VARX);
+
 
         final String exprFinal = toDisplayMath(exprRaw);
         final ArrayList<String> pasosFinal = buildNormalizedSteps(pasosRaw);
@@ -76,6 +79,14 @@ public class SolucionActivity extends AppCompatActivity {
                 btnGraficar.setVisibility(View.GONE);
             }
         }
+        btnGraficar.setOnClickListener(v -> {
+            Intent i = new Intent(SolucionActivity.this, GraficarActivity.class);
+            i.putExtra(EXTRA_EXPR_LATEX, exprFinal);
+            i.putExtra(EXTRA_GRAF_MODO, grafModo);
+            i.putExtra(EXTRA_GRAF_VARX, grafVarX);
+            startActivity(i);
+        });
+
     }
 
     private ArrayList<String> buildNormalizedSteps(ArrayList<String> in) {

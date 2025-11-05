@@ -175,10 +175,13 @@ public class MainActivity extends AppCompatActivity {
             sb.append(name);
             if (!t.children.isEmpty()) {
                 Token arg = t.children.get(0);
-                sb.append("(");
-                if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                else appendTokenWithCursor(sb, arg);
-                sb.append(")");
+                if ("()".equals(arg.value)) {
+                    appendTokenWithCursor(sb, arg);
+                } else {
+                    sb.append("(");
+                    appendTokenWithCursor(sb, arg);
+                    sb.append(")");
+                }
             } else {
                 sb.append("()");
             }
@@ -264,13 +267,15 @@ public class MainActivity extends AppCompatActivity {
                 }
                 sb.append("\\end{array}\\right.");
                 break;
+
             case "\\log":
             case "\\ln": {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                    else {
+                    if ("()".equals(arg.value)) {
+                        appendTokenWithCursor(sb, arg);
+                    } else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
                         sb.append(")");
@@ -278,6 +283,7 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+
             case "\\sin":
             case "\\cos":
             case "\\tan":
@@ -287,8 +293,9 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                    else {
+                    if ("()".equals(arg.value)) {
+                        appendTokenWithCursor(sb, arg);
+                    } else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
                         sb.append(")");
@@ -296,14 +303,16 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+
             case "\\arcsin":
             case "\\arccos":
             case "\\arctan": {
                 sb.append(t.value);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                    else {
+                    if ("()".equals(arg.value)) {
+                        appendTokenWithCursor(sb, arg);
+                    } else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
                         sb.append(")");
@@ -311,6 +320,7 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+
             case "\\arcsec":
             case "\\arccsc":
             case "\\arccot": {
@@ -320,8 +330,9 @@ public class MainActivity extends AppCompatActivity {
                 sb.append(name);
                 if (!t.children.isEmpty()) {
                     Token arg = t.children.get(0);
-                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                    else {
+                    if ("()".equals(arg.value)) {
+                        appendTokenWithCursor(sb, arg);
+                    } else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
                         sb.append(")");
@@ -329,6 +340,7 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+
             case "\\log_{2}":
             case "\\log_{10}": {
                 sb.append("\\log_{");
@@ -336,8 +348,9 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("}");
                 if (t.children.size() > 1) {
                     Token arg = t.children.get(1);
-                    if ("()".equals(arg.value)) appendChildrenWithCursor(sb, arg);
-                    else {
+                    if ("()".equals(arg.value)) {
+                        appendTokenWithCursor(sb, arg);
+                    } else {
                         sb.append("(");
                         appendTokenWithCursor(sb, arg);
                         sb.append(")");
@@ -345,20 +358,24 @@ public class MainActivity extends AppCompatActivity {
                 } else sb.append("()");
                 break;
             }
+
             case "\\exp":
                 sb.append("^{");
                 appendChildrenWithCursor(sb, t);
                 sb.append("}");
                 break;
+
             case "{}":
             case "^group":
                 appendChildrenWithCursor(sb, t);
                 break;
+
             default:
                 appendChildrenWithCursor(sb, t);
                 break;
         }
     }
+
 
     public void ins_char(View view) {
         Button b = (Button) view;
@@ -1254,6 +1271,100 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
     }
+    private void prepareGraphState(NodoAST arbol,
+                                   com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr,
+                                   com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico rs) {
+        com.example.a22100213_proyectointegrador_logarismos.graf.GraphState gs =
+                com.example.a22100213_proyectointegrador_logarismos.graf.GraphState.I;
+        gs.var = (rs.varIndep == null || rs.varIndep.isEmpty()) ? "x" : rs.varIndep;
+        gs.modo = (rs.modoGraf == null) ? "" : rs.modoGraf;
+        String mode = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_ANGLE_MODE, "RADIANS");
+        gs.radians = "RADIANS".equals(mode);
+        String display = lastExprLatex == null ? "" : lastExprLatex;
+        gs.labelLatex = display;
+
+        com.example.a22100213_proyectointegrador_logarismos.LexToken.Type t = arbol != null && arbol.token != null ? arbol.token.type : null;
+
+        if (gs.modo != null && gs.modo.startsWith("AREA_DEF_INTEGRAL:")) {
+            String[] p = gs.modo.split(":");
+            if (p.length == 3) {
+                try {
+                    gs.limA = Double.valueOf(p[1]);
+                    gs.limB = Double.valueOf(p[2]);
+                } catch (Exception ignored) {}
+            }
+            NodoAST cuerpo = localizarCuerpoIntegralDef(arbol);
+            gs.ast = cuerpo != null ? cuerpo : arbol;
+            return;
+        }
+
+        if (rr != null && rr.resultado != null && rs.tipoPrincipal == com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion.T3_DERIVADA) {
+            gs.ast = rr.resultado;
+            return;
+        }
+
+        if (gs.modo != null && gs.modo.equals("Y_FX_EC_IGUAL_0")) {
+            NodoAST eq = localizarEcuacion(arbol);
+            if (eq != null && eq.hijos.size() == 2) {
+                NodoAST rest = new NodoAST(null);
+                rest.hijos.add(eq.hijos.get(0));
+                rest.hijos.add(eq.hijos.get(1));
+                if (eq.token != null) eq.token.type = com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.SUB;
+                gs.ast = rest;
+                return;
+            }
+        }
+
+        if (esAsignacionFuncion(arbol)) {
+            gs.ast = arbol.hijos.get(1);
+            return;
+        }
+
+        if (arbol != null && arbol.token != null
+                && arbol.token.type == com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.EQUAL
+                && arbol.hijos.size() == 2
+                && arbol.hijos.get(0) != null
+                && arbol.hijos.get(0).token != null
+                && arbol.hijos.get(0).token.type == com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.VARIABLE
+                && arbol.hijos.get(0).hijos.isEmpty()) {
+            gs.ast = arbol.hijos.get(1);
+            return;
+        }
+
+        gs.ast = (rr != null && rr.resultado != null) ? rr.resultado : arbol;
+    }
+
+    private static boolean esAsignacionFuncion(NodoAST n) {
+        if (n == null || n.token == null) return false;
+        if (n.token.type != com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.EQUAL) return false;
+        NodoAST L = n.hijos.size() > 0 ? n.hijos.get(0) : null;
+        if (L == null || L.token == null || L.token.type != com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.VARIABLE) return false;
+        String v = L.token.value == null ? "" : L.token.value.trim();
+        return v.matches("[a-zA-Z][a-zA-Z0-9_]*\\([a-zA-Z]\\)");
+    }
+
+    private static NodoAST localizarCuerpoIntegralDef(NodoAST n) {
+        if (n == null) return null;
+        if (n.token != null && n.token.type == com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.INTEGRAL_DEF) {
+            return n.hijos.size() > 2 ? n.hijos.get(2) : null;
+        }
+        for (NodoAST h : n.hijos) {
+            NodoAST r = localizarCuerpoIntegralDef(h);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    private static NodoAST localizarEcuacion(NodoAST n) {
+        if (n == null) return null;
+        if (n.token != null && n.token.type == com.example.a22100213_proyectointegrador_logarismos.LexToken.Type.EQUAL && n.hijos.size() == 2) return n;
+        for (NodoAST h : n.hijos) {
+            NodoAST r = localizarEcuacion(h);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
 
     private boolean isFuncContainer(Token t) {
         if (t == null || !t.isContainer || t.value == null) return false;
@@ -1368,13 +1479,15 @@ public class MainActivity extends AppCompatActivity {
                 if (!exprTex.startsWith("$$")) exprTex = "$$\\Large " + exprTex + " $$";
                 lastExprLatex = exprTex;
 
+                prepareGraphState(arbol, rr, rs);
+
                 lastStepsLatex = new ArrayList<>();
                 List<com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion> pasos = rr.pasos;
                 if (pasos != null) {
                     for (com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion p : pasos) {
                         String tex = p != null ? p.latex : "";
                         if (tex == null) tex = "";
-                        String low = tex.toLowerCase(Locale.ROOT);
+                        String low = tex.toLowerCase(java.util.Locale.ROOT);
                         if (low.contains("formateo") && low.contains("final")) continue;
                         lastStepsLatex.add(tex);
                     }

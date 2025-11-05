@@ -702,6 +702,32 @@ public class AnalisisSemantico {
         rs.modoGraf = (rs.modoGraf == null) ? "" : rs.modoGraf;
         String vDefault = (rs.varIndep == null || rs.varIndep.isEmpty()) ? "x" : rs.varIndep;
 
+        if (raiz != null && raiz.token != null && raiz.token.type == LexToken.Type.EQUAL && raiz.hijos.size() == 2) {
+            NodoAST L = sub(raiz, 0), R = sub(raiz, 1);
+            if (L != null && L.token != null && L.token.type == LexToken.Type.VARIABLE && L.hijos.isEmpty()) {
+                String dep = L.token.value == null ? "" : L.token.value.trim();
+                java.util.Set<String> vr = varsNoI(R);
+                vr.remove(dep);
+                if (!contiene(raiz, LexToken.Type.IMAGINARY)
+                        && !contiene(raiz, LexToken.Type.FACTORIAL)
+                        && !contiene(raiz, LexToken.Type.PERCENT)) {
+                    if (vr.size() == 1) {
+                        rs.graficable = true;
+                        rs.varIndep = vr.iterator().next();
+                        rs.modoGraf = "Y_FX";
+                        return;
+                    }
+                    if (vr.isEmpty()) {
+                        rs.graficable = true;
+                        rs.varIndep = "x";
+                        rs.modoGraf = "Y_FX";
+                        return;
+                    }
+                }
+            }
+        }
+
+
         if (raiz != null && raiz.token != null && raiz.token.type == LexToken.Type.EQUAL && esAsignacionFuncion(raiz)) {
             String arg = argDeAsignacionFuncion(raiz);
             java.util.Set<String> vr = varsNoI(sub(raiz, 1));
