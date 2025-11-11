@@ -28,56 +28,45 @@
                 android:id="@+id/hs_katex_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="12dp"
                 android:fillViewport="true"
-                android:scrollbars="horizontal">
+                android:overScrollMode="never"
+                android:scrollbars="none">
 
-                <LinearLayout
+                <com.judemanutd.katexview.KatexView
+                    android:id="@+id/katex_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
+            </HorizontalScrollView>
 
-                    <com.judemanutd.katexview.KatexView
-                        android:id="@+id/katex_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:textColor="@android:color/black"
-                        tools:ignore="MissingClass" />
-                </LinearLayout>
+            <HorizontalScrollView
+                android:id="@+id/hs_katex_answer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true"
+                android:overScrollMode="never"
+                android:scrollbars="none"
+                android:layout_marginTop="8dp">
+
+                <com.judemanutd.katexview.KatexView
+                    android:id="@+id/katex_answer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
             </HorizontalScrollView>
 
             <TextView
                 android:id="@+id/test"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:textAlignment="center"
-                android:textSize="20sp" />
+                android:layout_marginTop="8dp"
+                android:textSize="14sp"
+                android:textColor="@android:color/black"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp" />
 
-            <HorizontalScrollView
-                android:id="@+id/hs_katex_answer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:fillViewport="true"
-                android:scrollbars="horizontal">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
-
-                    <com.judemanutd.katexview.KatexView
-                        android:id="@+id/katex_answer"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:textColor="@android:color/black"
-                        tools:ignore="MissingClass" />
-                </LinearLayout>
-            </HorizontalScrollView>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -190,7 +179,6 @@
                 tools:ignore="SpeakableTextPresentCheck" />
         </LinearLayout>
 
-        <!-- Barra superior del teclado: estable con weights -->
         <LinearLayout
             android:id="@+id/toolbar_keyboard"
             android:layout_width="match_parent"

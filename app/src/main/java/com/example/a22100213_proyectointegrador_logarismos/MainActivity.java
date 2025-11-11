@@ -19,6 +19,8 @@ import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
     private Button btnViewSolution;
+    private HorizontalScrollView hsInput, hsAnswer;
+
     private ArrayList<String> lastStepsLatex = new ArrayList<>();
     private String lastExprLatex = "";
     private boolean lastGraphable = false;
@@ -52,6 +54,44 @@ public class MainActivity extends AppCompatActivity {
             "'", "''", "′",
             "=", "+", "-", "/"
     ));
+
+    private static final Map<String, String> ERROR_EXPLANATIONS = new LinkedHashMap<>();
+    static {
+        ERROR_EXPLANATIONS.put("T1_TOK", "En aritmética solo se permiten números y +, −, ×, ÷, √, ^ y =.");
+        ERROR_EXPLANATIONS.put("T2_ARG", "Hay funciones con argumento inválido. Usa, por ejemplo, sin(⋯), log(⋯), ln(⋯).");
+        ERROR_EXPLANATIONS.put("T2_PARENS", "Paréntesis no balanceados. Cada '(' debe tener su ')'.");
+        ERROR_EXPLANATIONS.put("DIV0", "Se detectó una división entre cero.");
+        ERROR_EXPLANATIONS.put("RAD_NEG", "Raíz con argumento negativo.");
+        ERROR_EXPLANATIONS.put("LOG_DOM", "El argumento de un logaritmo debe ser mayor que cero.");
+        ERROR_EXPLANATIONS.put("ASIN_DOM", "arcsin fuera de dominio. El argumento debe estar en [-1, 1].");
+        ERROR_EXPLANATIONS.put("ACOS_DOM", "arccos fuera de dominio. El argumento debe estar en [-1, 1].");
+        ERROR_EXPLANATIONS.put("TAN_UNDEF", "tan es indefinida para ese argumento (coseno nulo).");
+        ERROR_EXPLANATIONS.put("COT_UNDEF", "cot es indefinida para ese argumento (seno nulo).");
+        ERROR_EXPLANATIONS.put("T3_VAR_DX", "La variable del diferencial no coincide con la variable de la función en la derivada.");
+        ERROR_EXPLANATIONS.put("T4_DX", "En la integral indefinida falta el diferencial, por ejemplo dx.");
+        ERROR_EXPLANATIONS.put("T4_VAR_DX", "La variable del diferencial no coincide en la integral indefinida.");
+        ERROR_EXPLANATIONS.put("T5_DX", "En la integral definida falta el diferencial, por ejemplo dx.");
+        ERROR_EXPLANATIONS.put("T5_VAR_DX", "La variable del diferencial no coincide en la integral definida.");
+        ERROR_EXPLANATIONS.put("T5_LIMS", "Los límites de la integral definida deben ser constantes.");
+        ERROR_EXPLANATIONS.put("T5_LIMS_IGUALES", "Los límites de la integral definida no pueden ser iguales.");
+        ERROR_EXPLANATIONS.put("T6_EQ", "Para un despeje lineal debe existir una ecuación con '='.");
+        ERROR_EXPLANATIONS.put("T6_VAR", "El despeje lineal debe involucrar exactamente una incógnita.");
+        ERROR_EXPLANATIONS.put("T6_GRADO", "Para ser lineal el grado debe ser 1.");
+        ERROR_EXPLANATIONS.put("T6_FUNC", "No se permiten funciones trigonométricas o logarítmicas en un despeje lineal.");
+        ERROR_EXPLANATIONS.put("T7_EQ", "Para un despeje polinómico debe existir una ecuación con '='.");
+        ERROR_EXPLANATIONS.put("T7_VAR", "El despeje polinómico debe involucrar exactamente una incógnita.");
+        ERROR_EXPLANATIONS.put("T7_FUNC", "No se permiten funciones en un despeje polinómico; debe ser puramente polinómico.");
+        ERROR_EXPLANATIONS.put("T7_POLI", "Se esperaba una expresión polinómica en ambos lados de la ecuación.");
+        ERROR_EXPLANATIONS.put("T7_COEF", "Los coeficientes del polinomio deben ser enteros (sin π, e ni decimales no enteros).");
+        ERROR_EXPLANATIONS.put("T7_GRADO", "Un despeje polinómico debe tener grado mayor o igual a 2.");
+        ERROR_EXPLANATIONS.put("T8_CANT", "El sistema debe tener 2 o 3 ecuaciones.");
+        ERROR_EXPLANATIONS.put("T8_VAR", "El número de variables debe coincidir con el de ecuaciones.");
+        ERROR_EXPLANATIONS.put("T8_FUNC", "En un sistema lineal no se permiten funciones (trig, log, radical, etc.).");
+        ERROR_EXPLANATIONS.put("T8_EQ", "Cada fila del sistema debe ser una ecuación con '='.");
+        ERROR_EXPLANATIONS.put("T8_VAR_EC", "Cada ecuación del sistema debe incluir todas las variables.");
+        ERROR_EXPLANATIONS.put("T8_LINEAL", "Cada ecuación del sistema debe ser de primer grado (lineal).");
+        ERROR_EXPLANATIONS.put("T9_MEZCLA", "No mezcles la unidad imaginaria i con derivadas o integrales.");
+    }
 
     private static final Set<String> BIN_OPS = new HashSet<>(Arrays.asList("+", "-", "\\cdot ", "/", "="));
 
@@ -126,6 +166,10 @@ public class MainActivity extends AppCompatActivity {
         answer = findViewById(R.id.katex_answer);
         cursorIndex = 0;
         keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
+
+        hsInput = findViewById(R.id.hs_katex_text);
+        hsAnswer = findViewById(R.id.hs_katex_answer);
+
         test = findViewById(R.id.test);
         keyboardsFlipp.setInAnimation(this, android.R.anim.fade_in);
         keyboardsFlipp.setOutAnimation(this, android.R.anim.fade_out);
@@ -1271,6 +1315,22 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
     }
+    private String humanizeSyntaxMessage(String m) {
+        if (m == null) return "Estructura inválida en la expresión. Revisa paréntesis, operadores o exponentes.";
+        String s = m.trim();
+        s = s.replaceAll("\\bat\\s*position\\s*\\d+", "");
+        s = s.replaceAll("\\s+", " ").trim();
+        return s.isEmpty() ? "Estructura inválida en la expresión. Revisa paréntesis, operadores o exponentes." : s;
+    }
+
+    private String explain(SemanticoError e) {
+        String base = ERROR_EXPLANATIONS.getOrDefault(e.codigo, e.mensaje == null ? "" : e.mensaje);
+        String pref = (e.severidad == SemanticoError.Severidad.ERROR) ? "Error: " : "Advertencia: ";
+        return pref + base;
+    }
+
+
+
     private void prepareGraphState(NodoAST arbol,
                                    com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr,
                                    com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico rs) {
@@ -1381,9 +1441,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateViewAfterMove(int delta) {
         updateView();
-        HorizontalScrollView hs = findViewById(R.id.hs_katex_text);
-        if (hs != null) {
-            hs.post(() -> hs.fullScroll(delta > 0 ? View.FOCUS_RIGHT : View.FOCUS_LEFT));
+        if (hsInput != null) {
+            hsInput.post(() -> hsInput.fullScroll(delta > 0 ? View.FOCUS_RIGHT : View.FOCUS_LEFT));
+        }
+    }
+
+    private void resetAnswerScroll() {
+        if (hsAnswer != null) {
+            hsAnswer.post(() -> hsAnswer.fullScroll(View.FOCUS_LEFT));
         }
     }
 
@@ -1431,33 +1496,21 @@ public class MainActivity extends AppCompatActivity {
             AnalisisSintactico parser = new AnalisisSintactico(lexTokens);
             NodoAST arbol = parser.parse();
             ResultadoSemantico rs = AnalisisSemantico.analizar(arbol);
+
             lastGraphable = rs.graficable;
             lastGrafModo  = (rs.modoGraf == null) ? "" : rs.modoGraf;
             lastGrafVarX  = (rs.varIndep == null || rs.varIndep.isEmpty()) ? "x" : rs.varIndep;
 
             if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
-                StringBuilder sbErr = new StringBuilder();
-                sbErr.append("Errores:\n").append(formatErrores(rs.errores));
-                test.setText(sbErr.toString());
+                String msg = formatErrores(rs.errores);
+                test.setText(msg);
                 answer.setText("");
                 hasResultShown = false;
                 if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
                 return;
             }
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("Tipo: ").append(formatTipo(rs.tipoPrincipal)).append("\n");
-            if (rs.subtipos != null && !rs.subtipos.isEmpty())
-                sb.append("Subtipos: ").append(formatSubtipos(rs.subtipos)).append("\n");
-            else
-                sb.append("Subtipos: ninguno\n");
-            sb.append("Errores: ninguno\n");
-
             String plan = com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion.plan(arbol, rs);
-            if (plan != null && !plan.trim().isEmpty() && !"Sin método asignado".equalsIgnoreCase(plan.trim())) {
-                sb.append("\nPlan: ").append(plan);
-            }
-            test.setText(sb.toString());
             lastMetodo = (plan != null) ? plan.trim() : "";
 
             com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr =
@@ -1472,6 +1525,7 @@ public class MainActivity extends AppCompatActivity {
                 if (finalTex == null) finalTex = "";
                 if (!finalTex.startsWith("$$")) finalTex = "$$\\Large " + finalTex + " $$";
                 answer.setText(finalTex);
+                resetAnswerScroll();
                 hasResultShown = finalTex.trim().length() > 0;
 
                 String exprTex = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(arbol);
@@ -1493,26 +1547,28 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t = rs.tipoPrincipal;
                 lastGraphable = rs.graficable;
-
                 if (btnViewSolution != null) btnViewSolution.setVisibility(hasResultShown ? View.VISIBLE : View.GONE);
+
+                test.setText("");
             } else {
                 answer.setText("");
                 hasResultShown = false;
                 if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
+                test.setText("");
             }
 
         } catch (RuntimeException ex) {
-            test.setText("Error de sintaxis: " + ex.getMessage());
+            String m = humanizeSyntaxMessage(ex.getMessage());
+            test.setText("Error de sintaxis: " + m);
             answer.setText("");
             hasResultShown = false;
             if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         } catch (Exception ex) {
-            test.setText("Ocurrió un problema inesperado al procesar la expresión.");
+            test.setText("Error inesperado al procesar la expresión.");
             answer.setText("");
-            if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
             hasResultShown = false;
+            if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         } catch (Throwable ex) {
             test.setText("Fallo crítico del motor: " + ex.getClass().getSimpleName());
             answer.setText("");
@@ -1520,6 +1576,7 @@ public class MainActivity extends AppCompatActivity {
             if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         }
     }
+
 
     private String formatTipo(com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion t) {
         switch (t) {
@@ -1566,13 +1623,11 @@ public class MainActivity extends AppCompatActivity {
         return sb.toString();
     }
 
-    private String formatErrores(java.util.List<SemanticoError> errs) {
+    private String formatErrores(List<SemanticoError> errs) {
+        LinkedHashSet<String> lines = new LinkedHashSet<>();
+        for (SemanticoError e : errs) lines.add("• " + explain(e));
         StringBuilder sb = new StringBuilder();
-        for (com.example.a22100213_proyectointegrador_logarismos.Semantico.SemanticoError e : errs) {
-            sb.append("- ").append(e.severidad).append(" ").append(e.codigo).append(": ").append(e.mensaje);
-            if (e.ruta != null && !e.ruta.isEmpty()) sb.append(" @").append(e.ruta.toString());
-            sb.append("\n");
-        }
+        for (String line : lines) sb.append(line).append("\n");
         return sb.toString();
     }
 
