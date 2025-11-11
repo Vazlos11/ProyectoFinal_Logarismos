@@ -109,6 +109,16 @@
         android:orientation="vertical"
         android:gravity="bottom">
 
+        <android.widget.Button
+            android:id="@+id/btn_save_expr"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:text="GUARDAR"
+            android:textAllCaps="true"
+            android:background="@drawable/tecselec"
+            android:layout_marginBottom="20dp"/>
+
         <!-- Tabs de teclado -->
         <LinearLayout
             android:layout_width="match_parent"
