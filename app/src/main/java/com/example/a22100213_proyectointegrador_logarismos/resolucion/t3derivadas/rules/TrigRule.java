@@ -19,32 +19,100 @@ public final class TrigRule implements DerivativeRule {
         if (di == null || di.fun == null) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
 
         NodoAST g = di.fun;
-        if (g.hijos.isEmpty()) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
+        if (g == null || g.token == null || g.hijos.isEmpty()) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
         NodoAST u = g.hijos.get(0);
 
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
+        rr.pasos.add(new PasoResolucion("Función trigonométrica compuesta", AstUtils.toTeX(g)));
+
         NodoAST uprime = subDerivOrConst(u, di.dif);
+        rr.pasos.add(new PasoResolucion("Derivada interna u'(x)", AstUtils.toTeX(uprime)));
 
         NodoAST res = null;
         switch (g.token.type) {
-            case TRIG_SIN: { NodoAST cosu = DerivativeUtils.cos(u); res = DerivativeUtils.mul(cosu, uprime); break; }
-            case TRIG_COS: { NodoAST sinu = DerivativeUtils.sin(u); res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(sinu, uprime)); break; }
-            case TRIG_TAN: { NodoAST cosu = DerivativeUtils.cos(u); NodoAST cos2 = DerivativeUtils.pow(cosu, AstUtils.number(2.0)); res = DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), cos2), uprime); break; }
-            case TRIG_COT: { NodoAST sinu = DerivativeUtils.sin(u); NodoAST sin2 = DerivativeUtils.pow(sinu, AstUtils.number(2.0)); res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), sin2), uprime)); break; }
-            case TRIG_SEC: { NodoAST sinu = DerivativeUtils.sin(u); NodoAST cosu = DerivativeUtils.cos(u); NodoAST cos2 = DerivativeUtils.pow(cosu, AstUtils.number(2.0)); res = DerivativeUtils.mul(DerivativeUtils.div(sinu, cos2), uprime); break; }
-            case TRIG_CSC: { NodoAST sinu = DerivativeUtils.sin(u); NodoAST cosu = DerivativeUtils.cos(u); NodoAST sin2 = DerivativeUtils.pow(sinu, AstUtils.number(2.0)); res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(cosu, sin2), uprime)); break; }
-            case TRIG_ARCSIN: { NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0)); NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0); NodoAST denom = DerivativeUtils.sqrt(oneMinus); res = DerivativeUtils.div(uprime, denom); break; }
-            case TRIG_ARCCOS: { NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0)); NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0); NodoAST denom = DerivativeUtils.sqrt(oneMinus); res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(uprime, denom)); break; }
-            case TRIG_ARCTAN: { NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0)); NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0); res = DerivativeUtils.div(uprime, onePlus); break; }
-            case TRIG_ARCCOT: { NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0)); NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0); res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(uprime, onePlus)); break; }
-            default: rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr;
+            case TRIG_SIN: {
+                NodoAST cosu = DerivativeUtils.cos(u);
+                res = DerivativeUtils.mul(cosu, uprime);
+                rr.pasos.add(new PasoResolucion("d/dx[sin(u)] = cos(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_COS: {
+                NodoAST sinu = DerivativeUtils.sin(u);
+                res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(sinu, uprime));
+                rr.pasos.add(new PasoResolucion("d/dx[cos(u)] = -sin(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_TAN: {
+                NodoAST cosu = DerivativeUtils.cos(u);
+                NodoAST cos2 = DerivativeUtils.pow(cosu, AstUtils.number(2.0));
+                res = DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), cos2), uprime);
+                rr.pasos.add(new PasoResolucion("d/dx[tan(u)] = sec^2(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_COT: {
+                NodoAST sinu = DerivativeUtils.sin(u);
+                NodoAST sin2 = DerivativeUtils.pow(sinu, AstUtils.number(2.0));
+                res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), sin2), uprime));
+                rr.pasos.add(new PasoResolucion("d/dx[cot(u)] = -csc^2(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_SEC: {
+                NodoAST sinu = DerivativeUtils.sin(u);
+                NodoAST cosu = DerivativeUtils.cos(u);
+                NodoAST cos2 = DerivativeUtils.pow(cosu, AstUtils.number(2.0));
+                res = DerivativeUtils.mul(DerivativeUtils.div(sinu, cos2), uprime);
+                rr.pasos.add(new PasoResolucion("d/dx[sec(u)] = sec(u)tan(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_CSC: {
+                NodoAST sinu = DerivativeUtils.sin(u);
+                NodoAST cosu = DerivativeUtils.cos(u);
+                NodoAST sin2 = DerivativeUtils.pow(sinu, AstUtils.number(2.0));
+                res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(cosu, sin2), uprime));
+                rr.pasos.add(new PasoResolucion("d/dx[csc(u)] = -csc(u)cot(u)·u'", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_ARCSIN: {
+                NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0));
+                NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0);
+                NodoAST denom = DerivativeUtils.sqrt(oneMinus);
+                res = DerivativeUtils.div(uprime, denom);
+                rr.pasos.add(new PasoResolucion("d/dx[arcsin(u)] = u'/√(1-u^2)", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_ARCCOS: {
+                NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0));
+                NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0);
+                NodoAST denom = DerivativeUtils.sqrt(oneMinus);
+                res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(uprime, denom));
+                rr.pasos.add(new PasoResolucion("d/dx[arccos(u)] = -u'/√(1-u^2)", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_ARCTAN: {
+                NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0));
+                NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0);
+                res = DerivativeUtils.div(uprime, onePlus);
+                rr.pasos.add(new PasoResolucion("d/dx[arctan(u)] = u'/(1+u^2)", AstUtils.toTeX(res)));
+                break;
+            }
+            case TRIG_ARCCOT: {
+                NodoAST u2 = DerivativeUtils.pow(u, AstUtils.number(2.0));
+                NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0);
+                res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(uprime, onePlus));
+                rr.pasos.add(new PasoResolucion("d/dx[arccot(u)] = -u'/(1+u^2)", AstUtils.toTeX(res)));
+                break;
+            }
+            default: {
+                rr.resultado = raiz;
+                rr.latexFinal = AstUtils.toTeX(raiz);
+                return rr;
+            }
         }
 
-        if (res == null) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
         NodoAST nuevo = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, res);
         rr.resultado = nuevo;
         rr.latexFinal = AstUtils.toTeX(nuevo);
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(res)));
-        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        rr.pasos.add(new PasoResolucion("Sustitución en la expresión", rr.latexFinal));
         return rr;
     }
 

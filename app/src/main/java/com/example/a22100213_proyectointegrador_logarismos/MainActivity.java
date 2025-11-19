@@ -1,5 +1,6 @@
 package com.example.a22100213_proyectointegrador_logarismos;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -20,9 +21,13 @@ import java.util.*;
 public class MainActivity extends AppCompatActivity {
     private Button btnViewSolution;
     private HorizontalScrollView hsInput, hsAnswer;
+    private Button btnClearExpr;
+
 
     private ArrayList<String> lastStepsLatex = new ArrayList<>();
     private String lastExprLatex = "";
+    private ArrayList<String> lastStepsDesc = new ArrayList<>();
+
     private boolean lastGraphable = false;
     TextView test;
     private static final int MAX_SYS_ROWS = 3;
@@ -161,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
         latexMap.put("|    |", "\\lvert \\rvert");
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -170,12 +176,32 @@ public class MainActivity extends AppCompatActivity {
         btnViewSolution.setVisibility(View.GONE);
         btnViewSolution.setOnClickListener(this::openSolution);
         katexView = findViewById(R.id.katex_text);
-        answer = findViewById(R.id.katex_answer);
         cursorIndex = 0;
         keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
 
+        answer = findViewById(R.id.katex_answer);
         hsInput = findViewById(R.id.hs_katex_text);
         hsAnswer = findViewById(R.id.hs_katex_answer);
+        cursorIndex = 0;
+        keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
+
+        try {
+            answer.setHorizontalScrollBarEnabled(false);
+            answer.setVerticalScrollBarEnabled(false);
+        } catch (Throwable ignored) {}
+
+        if (hsAnswer != null) {
+            hsAnswer.setSmoothScrollingEnabled(true);
+            hsAnswer.setOnTouchListener((v, ev) -> {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+                return false;
+            });
+        }
+
+        btnClearExpr = findViewById(R.id.btn_clear_expr);
+        if (btnClearExpr != null) {
+            btnClearExpr.setOnClickListener(v -> clearExpression());
+        }
 
         savedStore = new com.example.a22100213_proyectointegrador_logarismos.saved.SavedExpressionsStore(this);
         btnSaveExpr = findViewById(R.id.btn_save_expr);
@@ -192,6 +218,31 @@ public class MainActivity extends AppCompatActivity {
         android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
         String saved = sp.getString(KEY_ANGLE_MODE, "RADIANS");
         applyAngleMode(saved);
+    }
+    private void clearExpression() {
+        rootTokens.clear();
+        currentContainer = null;
+        cursorIndex = 0;
+        updateView();
+
+        if (answer != null) answer.setText("");
+        if (test != null) test.setText("");
+
+        lastExprLatex = "";
+        lastStepsLatex.clear();
+        lastStepsDesc.clear();
+        lastGraphable = false;
+        lastGrafModo = "";
+        lastGrafVarX = "x";
+        lastMetodo = "";
+        hasResultShown = false;
+
+        if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
+
+        if (hsInput != null) {
+            hsInput.post(() -> hsInput.fullScroll(View.FOCUS_LEFT));
+        }
+        resetAnswerScroll();
     }
 
     private boolean isContainerSymbol(String symbol) {
@@ -705,11 +756,29 @@ public class MainActivity extends AppCompatActivity {
         Token prev = targetList.get(pos - 1);
         if (prev == null) return true;
         if (prev.isAtomic && BIN_OPS.contains(prev.value)) return true;
-        if (prev.isContainer) return true;
         return false;
     }
 
     private void insertToken(Token token) {
+        if (currentContainer != null && "\\frac".equals(currentContainer.value)) {
+            List<Token> fracChildren = currentContainer.children;
+            Token num = fracChildren.size() > 0 ? fracChildren.get(0) : null;
+            Token den = fracChildren.size() > 1 ? fracChildren.get(1) : null;
+            if (cursorIndex <= 0 && num != null) {
+                currentContainer = num;
+                cursorIndex = num.children.size();
+            } else if (cursorIndex == 1 && den != null) {
+                currentContainer = den;
+                cursorIndex = 0;
+            } else if (cursorIndex >= 2 && den != null) {
+                Token p = currentContainer.parent;
+                List<Token> pl = (p == null) ? rootTokens : p.children;
+                int idx = pl.indexOf(currentContainer);
+                currentContainer = p;
+                cursorIndex = idx + 1;
+            }
+        }
+
         List<Token> targetList = (currentContainer == null) ? rootTokens : currentContainer.children;
         Token parentToken = currentContainer;
 
@@ -783,15 +852,11 @@ public class MainActivity extends AppCompatActivity {
             return cont.children.size() > 0 ? cont.children.get(0) : null;
         if (cont == null || !cont.isContainer) return null;
         if ("\\system".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
-
-        if ("\\int_def".equals(cont.value)) return cont.children.size() > 2 ? cont.children.get(2) : null;
-
+        if ("\\int_def".equals(cont.value)) return cont.children.size() > 1 ? cont.children.get(1) : null;
         if ("\\int".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
-
         if ("\\frac".equals(cont.value)) return cont.children.size() > 0 ? cont.children.get(0) : null;
         if ("\\exp".equals(cont.value)) return cont.children.isEmpty() ? null : cont.children.get(0);
         if ("\\log_{2}".equals(cont.value) || "\\log_{10}".equals(cont.value)) return cont.children.size() > 1 ? cont.children.get(1) : null;
-
         if (cont.children.size() == 1) {
             Token c0 = cont.children.get(0);
             if (c0 != null && c0.isContainer) {
@@ -811,6 +876,28 @@ public class MainActivity extends AppCompatActivity {
         List<Token> targetList = (currentContainer == null) ? rootTokens : currentContainer.children;
         if (cursorIndex > 0) {
             Token toRemove = targetList.get(cursorIndex - 1);
+            if (toRemove != null && toRemove.isAtomic && "dx".equals(toRemove.value)) {
+                Token p = currentContainer == null ? null : currentContainer;
+                if (p != null && "\\int".equals(p.value)) {
+                    List<Token> pl = p.parent == null ? rootTokens : p.parent.children;
+                    int idx = pl.indexOf(p);
+                    pl.remove(idx);
+                    currentContainer = p.parent;
+                    cursorIndex = Math.max(0, idx);
+                    updateView();
+                    return;
+                }
+                Token pp = currentContainer == null ? null : currentContainer.parent;
+                if (pp != null && "\\int_def".equals(pp.value)) {
+                    List<Token> ppl = pp.parent == null ? rootTokens : pp.parent.children;
+                    int idx = ppl.indexOf(pp);
+                    ppl.remove(idx);
+                    currentContainer = pp.parent;
+                    cursorIndex = Math.max(0, idx);
+                    updateView();
+                    return;
+                }
+            }
             targetList.remove(cursorIndex - 1);
             cursorIndex--;
             if (toRemove != null) pruneAroundCursorAfterRemoval(toRemove);
@@ -819,7 +906,6 @@ public class MainActivity extends AppCompatActivity {
                 Token parent = currentContainer.parent;
                 List<Token> parentList = (parent == null) ? rootTokens : parent.children;
                 int idxInParent = parentList.indexOf(currentContainer);
-
                 if ("^group".equals(currentContainer.value) && currentContainer.children.isEmpty()) {
                     Token exp = currentContainer.parent;
                     if (exp != null && "\\exp".equals(exp.value)) {
@@ -832,7 +918,6 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                 }
-
                 if (parent != null && "\\system".equals(parent.value)) {
                     if (targetList.isEmpty()) {
                         parentList.remove(idxInParent);
@@ -918,9 +1003,59 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void moveCursorDelta(int delta) {
-        List<Token> list = (currentContainer == null) ? rootTokens : currentContainer.children;
-
         if (delta > 0) {
+            if (currentContainer != null && currentContainer.parent != null && "\\frac".equals(currentContainer.parent.value)) {
+                Token frac = currentContainer.parent;
+                if (frac.children.size() >= 2) {
+                    Token num = frac.children.get(0);
+                    Token den = frac.children.get(1);
+                    if (currentContainer == num && cursorIndex == num.children.size()) {
+                        currentContainer = den;
+                        cursorIndex = 0;
+                        updateViewAfterMove(delta);
+                        return;
+                    }
+                    if (currentContainer == den && cursorIndex == den.children.size()) {
+                        Token p = frac.parent;
+                        List<Token> pl = (p == null) ? rootTokens : p.children;
+                        int idx = pl.indexOf(frac);
+                        currentContainer = p;
+                        cursorIndex = idx + 1;
+                        updateViewAfterMove(delta);
+                        return;
+                    }
+                }
+            }
+
+            if (currentContainer != null && currentContainer.parent != null && "\\int_def".equals(currentContainer.parent.value)) {
+                Token def = currentContainer.parent;
+                int idx = def.children.indexOf(currentContainer);
+                if (idx == 1 && cursorIndex == currentContainer.children.size()) {
+                    currentContainer = def.children.get(0);
+                    cursorIndex = 0;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                if (idx == 0 && cursorIndex == currentContainer.children.size()) {
+                    currentContainer = def.children.get(2);
+                    cursorIndex = 0;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+            }
+            if (currentContainer != null && currentContainer.parent != null && "\\int".equals(currentContainer.parent.value)) {
+                Token ind = currentContainer.parent;
+                if (ind.children.indexOf(currentContainer) == 0 && cursorIndex == currentContainer.children.size()) {
+                    Token p = ind.parent;
+                    List<Token> pl = (p == null) ? rootTokens : p.children;
+                    int idx = pl.indexOf(ind);
+                    currentContainer = p;
+                    cursorIndex = idx + 1;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+            }
+            List<Token> list = (currentContainer == null) ? rootTokens : currentContainer.children;
             if (currentContainer != null && currentContainer.isContainer) {
                 if (cursorIndex == currentContainer.children.size()) {
                     Token p = currentContainer.parent;
@@ -936,7 +1071,6 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-
             if (cursorIndex < list.size()) {
                 Token t = list.get(cursorIndex);
                 if (t.isContainer) {
@@ -954,8 +1088,8 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                     if ("\\int_def".equals(t.value)) {
-                        Token body = t.children.size() > 2 ? t.children.get(2) : null;
-                        currentContainer = body != null ? body : t;
+                        Token sup = t.children.size() > 1 ? t.children.get(1) : null;
+                        currentContainer = sup != null ? sup : t;
                         cursorIndex = 0;
                         updateViewAfterMove(delta);
                         return;
@@ -1003,6 +1137,59 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (delta < 0) {
+            if (currentContainer != null && currentContainer.parent != null && "\\frac".equals(currentContainer.parent.value)) {
+                Token frac = currentContainer.parent;
+                if (frac.children.size() >= 2) {
+                    Token num = frac.children.get(0);
+                    Token den = frac.children.get(1);
+                    if (currentContainer == den && cursorIndex == 0) {
+                        currentContainer = num;
+                        cursorIndex = num.children.size();
+                        updateViewAfterMove(delta);
+                        return;
+                    }
+                    if (currentContainer == num && cursorIndex == 0) {
+                        Token p = frac.parent;
+                        List<Token> pl = (p == null) ? rootTokens : p.children;
+                        int idx = pl.indexOf(frac);
+                        currentContainer = p;
+                        cursorIndex = idx;
+                        updateViewAfterMove(delta);
+                        return;
+                    }
+                }
+            }
+
+            if (currentContainer != null && currentContainer.parent != null && "\\int_def".equals(currentContainer.parent.value)) {
+                Token def = currentContainer.parent;
+                int idx = def.children.indexOf(currentContainer);
+                if (idx == 2 && cursorIndex == 0) {
+                    Token inf = def.children.get(0);
+                    currentContainer = inf;
+                    cursorIndex = inf.children.size();
+                    updateViewAfterMove(delta);
+                    return;
+                }
+                if (idx == 0 && cursorIndex == 0) {
+                    Token sup = def.children.get(1);
+                    currentContainer = sup;
+                    cursorIndex = sup.children.size();
+                    updateViewAfterMove(delta);
+                    return;
+                }
+            }
+            if (currentContainer != null && currentContainer.parent != null && "\\int".equals(currentContainer.parent.value)) {
+                if (cursorIndex == 0 && currentContainer.parent.children.indexOf(currentContainer) == 0) {
+                    Token ind = currentContainer.parent;
+                    List<Token> pl = (ind.parent == null) ? rootTokens : ind.parent.children;
+                    int idx = pl.indexOf(ind);
+                    currentContainer = ind.parent;
+                    cursorIndex = idx;
+                    updateViewAfterMove(delta);
+                    return;
+                }
+            }
+            List<Token> list = (currentContainer == null) ? rootTokens : currentContainer.children;
             if (currentContainer != null && currentContainer.isContainer) {
                 if (cursorIndex == 0) {
                     Token p = currentContainer.parent;
@@ -1018,7 +1205,6 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-
             if (cursorIndex > 0) {
                 Token t = list.get(cursorIndex - 1);
                 if (t.isContainer) {
@@ -1053,10 +1239,11 @@ public class MainActivity extends AppCompatActivity {
                         if (body != null) {
                             currentContainer = body;
                             cursorIndex = body.children.size();
-                        } else {
-                            currentContainer = t;
-                            cursorIndex = t.children.size();
+                            updateViewAfterMove(delta);
+                            return;
                         }
+                        currentContainer = t;
+                        cursorIndex = t.children.size();
                         updateViewAfterMove(delta);
                         return;
                     }
@@ -1103,6 +1290,45 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    private String wrapLatex(String tex) {
+        if (isBlank(tex)) return "";
+        String t = tex.trim();
+        return t.startsWith("$$") ? t : "$$\\Large \\displaystyle " + t + " $$";
+    }
+
+    private String computeFinalLatex(com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr,
+                                     NodoAST arbol) {
+        if (rr == null) return com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(arbol);
+
+        String tex = rr.latexFinal;
+        if (!isBlank(tex)) return tex.trim();
+
+        String fromResultado = (rr.resultado != null)
+                ? com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(rr.resultado)
+                : null;
+        if (!isBlank(fromResultado)) return fromResultado.trim();
+
+        java.util.List<com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion> pasos = rr.pasos;
+        if (pasos != null) {
+            for (int i = pasos.size() - 1; i >= 0; i--) {
+                com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion p = pasos.get(i);
+                if (p == null) continue;
+                String pt = p.latex;
+                if (isBlank(pt)) continue;
+                String low = pt.toLowerCase(java.util.Locale.ROOT);
+                if (low.contains("formateo") && low.contains("final")) continue;
+                return pt.trim();
+            }
+        }
+
+        String fallback = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(arbol);
+        return isBlank(fallback) ? "" : fallback.trim();
+    }
     private String humanizeSyntaxMessage(String m) {
         if (m == null) return "Estructura inválida en la expresión. Revisa paréntesis, operadores o exponentes.";
         String s = m.trim();
@@ -1305,14 +1531,11 @@ public class MainActivity extends AppCompatActivity {
                     com.example.a22100213_proyectointegrador_logarismos.resolucion.MotorResolucion.resolver(arbol, rs);
 
             if (rr != null) {
-                String finalTex = (rr.latexFinal != null && !rr.latexFinal.trim().isEmpty())
-                        ? rr.latexFinal.trim()
-                        : com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(
-                        rr.resultado != null ? rr.resultado : arbol
-                );
-                if (finalTex == null) finalTex = "";
-                if (!finalTex.startsWith("$$")) finalTex = "$$\\Large " + finalTex + " $$";
+                String finalTex = wrapLatex(computeFinalLatex(rr, arbol));
                 answer.setText(finalTex);
+                resetAnswerScroll();
+                hasResultShown = finalTex.trim().length() > 0;
+
                 resetAnswerScroll();
                 hasResultShown = finalTex.trim().length() > 0;
 
@@ -1324,16 +1547,21 @@ public class MainActivity extends AppCompatActivity {
                 prepareGraphState(arbol, rr, rs);
 
                 lastStepsLatex = new ArrayList<>();
+                lastStepsDesc = new ArrayList<>();
                 List<com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion> pasos = rr.pasos;
+                String finalTexForSteps = wrapLatex(computeFinalLatex(rr, arbol)).trim();
                 if (pasos != null) {
                     for (com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion p : pasos) {
-                        String tex = p != null ? p.latex : "";
-                        if (tex == null) tex = "";
+                        String desc = p == null ? "" : (p.descripcion == null ? "" : p.descripcion.trim());
+                        String tex = p == null ? "" : (p.latex == null ? "" : p.latex);
                         String low = tex.toLowerCase(java.util.Locale.ROOT);
                         if (low.contains("formateo") && low.contains("final")) continue;
+                        if ("resultado final".equalsIgnoreCase(desc)) tex = finalTexForSteps;
+                        lastStepsDesc.add(desc);
                         lastStepsLatex.add(tex);
                     }
                 }
+
 
                 lastGraphable = rs.graficable;
                 if (btnViewSolution != null) btnViewSolution.setVisibility(hasResultShown ? View.VISIBLE : View.GONE);
@@ -1396,6 +1624,7 @@ public class MainActivity extends AppCompatActivity {
         i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_GRAF_MODO, lastGrafModo);
         i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_GRAF_VARX, lastGrafVarX);
         i.putExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_METODO, lastMetodo);
+        i.putStringArrayListExtra(com.example.a22100213_proyectointegrador_logarismos.solucion.SolucionActivity.EXTRA_STEPS_DESC, lastStepsDesc);
         startActivity(i);
     }
 

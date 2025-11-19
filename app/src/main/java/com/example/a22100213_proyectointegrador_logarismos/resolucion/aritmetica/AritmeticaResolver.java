@@ -17,19 +17,21 @@ public class AritmeticaResolver implements Resolver {
     @Override
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
-        String before = AstUtils.toTeX(raiz);
-        String etiqueta = "Evaluación directa";
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
+
         Double v = AstUtils.evalConst(raiz);
         if (v != null) {
             double w = (v == 0.0 ? 0.0 : v);
             rr.resultado = AstUtils.number(w);
             rr.latexFinal = AstUtils.toTeX(rr.resultado);
-            rr.pasos.add(new PasoResolucion("\\text{" + etiqueta + "}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("Evaluación aritmética", rr.latexFinal));
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
+
         rr.resultado = raiz;
-        rr.latexFinal = before;
-        rr.pasos.add(new PasoResolucion("\\text{Sin cambio (T1)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+        rr.latexFinal = AstUtils.toTeX(raiz);
+        rr.pasos.add(new PasoResolucion("Sin cambio (T1)", rr.latexFinal));
         return rr;
     }
 }

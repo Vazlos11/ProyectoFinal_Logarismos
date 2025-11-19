@@ -37,15 +37,16 @@ final class NoLinealEspecialResolver {
         if (isExpENode(L) && cR != null) {
             double k = cR;
             if (k <= 0) return sinSolucion(rr);
-            rr.pasos.add(new PasoResolucion("\\ln\\left(" + AstUtils.toTeX(L) + "\\right)=" + num(Math.log(k))));
+            rr.pasos.add(new PasoResolucion("Aplicar logaritmo natural a ambos lados", "\\ln\\left(" + AstUtils.toTeX(L) + "\\right)=" + num(Math.log(k))));
             return solveLinear(L.hijos.get(1), Math.log(k), var, rr);
         }
         if (isExpENode(R) && cL != null) {
             double k = cL;
             if (k <= 0) return sinSolucion(rr);
-            rr.pasos.add(new PasoResolucion("\\ln\\left(" + AstUtils.toTeX(R) + "\\right)=" + num(Math.log(k))));
+            rr.pasos.add(new PasoResolucion("Aplicar logaritmo natural a ambos lados", "\\ln\\left(" + AstUtils.toTeX(R) + "\\right)=" + num(Math.log(k))));
             return solveLinear(R.hijos.get(1), Math.log(k), var, rr);
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -55,25 +56,26 @@ final class NoLinealEspecialResolver {
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isLnNode(L) && cR != null) {
-            rr.pasos.add(new PasoResolucion("\\mathrm{e}^{" + AstUtils.toTeX(L) + "}=" + num(Math.exp(cR))));
+            rr.pasos.add(new PasoResolucion("Exponenciar ambos lados", "\\mathrm{e}^{" + AstUtils.toTeX(L) + "}=" + num(Math.exp(cR))));
             return solveLinear(L.hijos.get(0), Math.exp(cR), var, rr, true);
         }
         if (isLnNode(R) && cL != null) {
-            rr.pasos.add(new PasoResolucion("\\mathrm{e}^{" + AstUtils.toTeX(R) + "}=" + num(Math.exp(cL))));
+            rr.pasos.add(new PasoResolucion("Exponenciar ambos lados", "\\mathrm{e}^{" + AstUtils.toTeX(R) + "}=" + num(Math.exp(cL))));
             return solveLinear(R.hijos.get(0), Math.exp(cL), var, rr, true);
         }
         if (isLogAnyNode(L) && cR != null) {
             double base = logBase(L);
             double val = Math.pow(base, cR);
-            rr.pasos.add(new PasoResolucion(num(base) + "^{" + AstUtils.toTeX(L) + "}=" + num(val)));
+            rr.pasos.add(new PasoResolucion("Potenciar con base " + num(base), num(base) + "^{" + AstUtils.toTeX(L) + "}=" + num(val)));
             return solveLinear(L.hijos.get(0), val, var, rr, true);
         }
         if (isLogAnyNode(R) && cL != null) {
             double base = logBase(R);
             double val = Math.pow(base, cL);
-            rr.pasos.add(new PasoResolucion(num(base) + "^{" + AstUtils.toTeX(R) + "}=" + num(val)));
+            rr.pasos.add(new PasoResolucion("Potenciar con base " + num(base), num(base) + "^{" + AstUtils.toTeX(R) + "}=" + num(val)));
             return solveLinear(R.hijos.get(0), val, var, rr, true);
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -84,42 +86,51 @@ final class NoLinealEspecialResolver {
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isRadicalNode(L) && cR != null) {
             double k = cR;
-            rr.pasos.add(new PasoResolucion("(" + AstUtils.toTeX(L) + ")^2=" + num(k * k)));
+            rr.pasos.add(new PasoResolucion("Elevar al cuadrado", "(" + AstUtils.toTeX(L) + ")^2=" + num(k * k)));
             return solveLinear(L.hijos.get(0), k * k, var, rr, true);
         }
         if (isRadicalNode(R) && cL != null) {
             double k = cL;
-            rr.pasos.add(new PasoResolucion("(" + AstUtils.toTeX(R) + ")^2=" + num(k * k)));
+            rr.pasos.add(new PasoResolucion("Elevar al cuadrado", "(" + AstUtils.toTeX(R) + ")^2=" + num(k * k)));
             return solveLinear(R.hijos.get(0), k * k, var, rr, true);
         }
         if (isPowerOfLinear(L) && cR != null) {
             double p = evaluarConstante(L.hijos.get(1));
             if (isInteger(p) && ((int)Math.rint(p)) % 2 == 0) {
                 double r = rootSafe(cR, p);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L.hijos.get(0)) + "=" + "\\pm" + num(r)));
+                rr.pasos.add(new PasoResolucion("Extraer raíz par", AstUtils.toTeX(L.hijos.get(0)) + "=" + "\\pm" + num(r)));
                 ResultadoResolucion rr1 = solveLinear(L.hijos.get(0), r, var, cloneBase(rr));
                 ResultadoResolucion rr2 = solveLinear(L.hijos.get(0), -r, var, cloneBase(rr));
-                return merge(rr, rr1, rr2);
+                ResultadoResolucion m = merge(rr, rr1, rr2);
+                cerrar(m);
+                return m;
             } else {
                 double r = rootSafe(cR, p);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L.hijos.get(0)) + "=" + num(r)));
-                return solveLinear(L.hijos.get(0), r, var, rr);
+                rr.pasos.add(new PasoResolucion("Extraer raíz", AstUtils.toTeX(L.hijos.get(0)) + "=" + num(r)));
+                ResultadoResolucion r1 = solveLinear(L.hijos.get(0), r, var, rr);
+                cerrar(r1);
+                return r1;
             }
         }
         if (isPowerOfLinear(R) && cL != null) {
             double p = evaluarConstante(R.hijos.get(1));
             if (isInteger(p) && ((int)Math.rint(p)) % 2 == 0) {
                 double r = rootSafe(cL, p);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(R.hijos.get(0)) + "=" + "\\pm" + num(r)));
+                rr.pasos.add(new PasoResolucion("Extraer raíz par", AstUtils.toTeX(R.hijos.get(0)) + "=" + "\\pm" + num(r)));
                 ResultadoResolucion rr1 = solveLinear(R.hijos.get(0), r, var, cloneBase(rr));
                 ResultadoResolucion rr2 = solveLinear(R.hijos.get(0), -r, var, cloneBase(rr));
-                return merge(rr, rr1, rr2);
+                ResultadoResolucion m = merge(rr, rr1, rr2);
+                cerrar(m);
+                return m;
             } else {
                 double r = rootSafe(cL, p);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(R.hijos.get(0)) + "=" + num(r)));
-                return solveLinear(R.hijos.get(0), r, var, rr);
+                rr.pasos.add(new PasoResolucion("Extraer raíz", AstUtils.toTeX(R.hijos.get(0)) + "=" + num(r)));
+                ResultadoResolucion r1 = solveLinear(R.hijos.get(0), r, var, rr);
+                cerrar(r1);
+                return r1;
             }
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -131,81 +142,103 @@ final class NoLinealEspecialResolver {
         if (isAbsNode(L) && cR != null) {
             double k = cR;
             if (k < 0) return sinSolucion(rr);
+            rr.pasos.add(new PasoResolucion("Eliminar valor absoluto por casos", AstUtils.toTeX(L.hijos.get(0)) + "=" + num(k) + "\\;\\text{o}\\;" + AstUtils.toTeX(L.hijos.get(0)) + "=" + num(-k)));
             ResultadoResolucion rr1 = solveLinear(L.hijos.get(0), k, var, cloneBase(rr));
             ResultadoResolucion rr2 = solveLinear(L.hijos.get(0), -k, var, cloneBase(rr));
-            return merge(rr, rr1, rr2);
+            ResultadoResolucion m = merge(rr, rr1, rr2);
+            cerrar(m);
+            return m;
         }
         if (isAbsNode(R) && cL != null) {
             double k = cL;
             if (k < 0) return sinSolucion(rr);
+            rr.pasos.add(new PasoResolucion("Eliminar valor absoluto por casos", AstUtils.toTeX(R.hijos.get(0)) + "=" + num(k) + "\\;\\text{o}\\;" + AstUtils.toTeX(R.hijos.get(0)) + "=" + num(-k)));
             ResultadoResolucion rr1 = solveLinear(R.hijos.get(0), k, var, cloneBase(rr));
             ResultadoResolucion rr2 = solveLinear(R.hijos.get(0), -k, var, cloneBase(rr));
-            return merge(rr, rr1, rr2);
+            ResultadoResolucion m = merge(rr, rr1, rr2);
+            cerrar(m);
+            return m;
         }
+        cerrar(rr);
         return rr;
     }
 
     private static ResultadoResolucion resolverTrigSin(NodoAST eq) {
-        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica seno");
+        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica: seno");
         String var = unicaVariable(eq);
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isSinNode(L) && cR != null && Math.abs(cR) <= 1 + 1e-12) {
             double r = Math.asin(clamp(cR));
             String u = AstUtils.toTeX(L.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(Math.PI - r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(L.hijos.get(0), new double[]{r, Math.PI - r}, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia principal", u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            rr.pasos.add(new PasoResolucion("Solución suplementaria", u + "=" + num(Math.PI - r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(L.hijos.get(0), new double[]{r, Math.PI - r}, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            cerrar(r1);
+            return r1;
         }
         if (isSinNode(R) && cL != null && Math.abs(cL) <= 1 + 1e-12) {
             double r = Math.asin(clamp(cL));
             String u = AstUtils.toTeX(R.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(Math.PI - r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(R.hijos.get(0), new double[]{r, Math.PI - r}, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia principal", u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            rr.pasos.add(new PasoResolucion("Solución suplementaria", u + "=" + num(Math.PI - r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(R.hijos.get(0), new double[]{r, Math.PI - r}, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            cerrar(r1);
+            return r1;
         }
+        cerrar(rr);
         return rr;
     }
 
     private static ResultadoResolucion resolverTrigCos(NodoAST eq) {
-        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica coseno");
+        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica: coseno");
         String var = unicaVariable(eq);
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isCosNode(L) && cR != null && Math.abs(cR) <= 1 + 1e-12) {
             double r = Math.acos(clamp(cR));
             String u = AstUtils.toTeX(L.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            rr.pasos.add(new PasoResolucion(u + "=-" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(L.hijos.get(0), new double[]{ r, -r }, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia principal", u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            rr.pasos.add(new PasoResolucion("Familia opuesta", u + "=-" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(L.hijos.get(0), new double[]{ r, -r }, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            cerrar(r1);
+            return r1;
         }
         if (isCosNode(R) && cL != null && Math.abs(cL) <= 1 + 1e-12) {
             double r = Math.acos(clamp(cL));
             String u = AstUtils.toTeX(R.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            rr.pasos.add(new PasoResolucion(u + "=-" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(R.hijos.get(0), new double[]{ r, -r }, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia principal", u + "=" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            rr.pasos.add(new PasoResolucion("Familia opuesta", u + "=-" + num(r) + "+2\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(R.hijos.get(0), new double[]{ r, -r }, new double[]{2*Math.PI, 2*Math.PI}, var, rr);
+            cerrar(r1);
+            return r1;
         }
+        cerrar(rr);
         return rr;
     }
 
     private static ResultadoResolucion resolverTrigTan(NodoAST eq) {
-        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica tangente");
+        ResultadoResolucion rr = base(eq, "Ecuación trigonométrica: tangente");
         String var = unicaVariable(eq);
         NodoAST L = eq.hijos.get(0), R = eq.hijos.get(1);
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isTanNode(L) && cR != null) {
             double r = Math.atan(cR);
             String u = AstUtils.toTeX(L.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(L.hijos.get(0), new double[]{ r }, new double[]{ Math.PI }, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia de soluciones", u + "=" + num(r) + "+\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(L.hijos.get(0), new double[]{ r }, new double[]{ Math.PI }, var, rr);
+            cerrar(r1);
+            return r1;
         }
         if (isTanNode(R) && cL != null) {
             double r = Math.atan(cL);
             String u = AstUtils.toTeX(R.hijos.get(0));
-            rr.pasos.add(new PasoResolucion(u + "=" + num(r) + "+\\pi n,\\;n\\in\\mathbb{Z}"));
-            return solveLinearFamilies(R.hijos.get(0), new double[]{ r }, new double[]{ Math.PI }, var, rr);
+            rr.pasos.add(new PasoResolucion("Familia de soluciones", u + "=" + num(r) + "+\\pi n,\\;n\\in\\mathbb{Z}"));
+            ResultadoResolucion r1 = solveLinearFamilies(R.hijos.get(0), new double[]{ r }, new double[]{ Math.PI }, var, rr);
+            cerrar(r1);
+            return r1;
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -216,12 +249,19 @@ final class NoLinealEspecialResolver {
         Double cL = evaluarConstante(L), cR = evaluarConstante(R);
         if (isArcTrigNode(L) && cR != null) {
             double v = arcTrigInvertValue(L.token.type, cR);
-            return solveLinear(L.hijos.get(0), v, var, rr);
+            rr.pasos.add(new PasoResolucion("Aplicar función inversa", AstUtils.toTeX(L.hijos.get(0)) + "=" + num(v)));
+            ResultadoResolucion r1 = solveLinear(L.hijos.get(0), v, var, rr);
+            cerrar(r1);
+            return r1;
         }
         if (isArcTrigNode(R) && cL != null) {
             double v = arcTrigInvertValue(R.token.type, cL);
-            return solveLinear(R.hijos.get(0), v, var, rr);
+            rr.pasos.add(new PasoResolucion("Aplicar función inversa", AstUtils.toTeX(R.hijos.get(0)) + "=" + num(v)));
+            ResultadoResolucion r1 = solveLinear(R.hijos.get(0), v, var, rr);
+            cerrar(r1);
+            return r1;
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -233,29 +273,32 @@ final class NoLinealEspecialResolver {
         if (isFrac(L) && kR != null) {
             double[] numAB = linearAB(L.hijos.get(0), var);
             double[] denAB = linearAB(L.hijos.get(1), var);
-            if (numAB == null || denAB == null) return rr;
+            if (numAB == null || denAB == null) { cerrar(rr); return rr; }
             double a = numAB[0], b = numAB[1], c = denAB[0], d = denAB[1], k = kR;
             double denx = a - k * c;
             if (Math.abs(denx) < 1e-15) return sinSolucion(rr);
             double x = (k * d - b) / denx;
-            rr.pasos.add(new PasoResolucion("x=" + num(x)));
+            rr.pasos.add(new PasoResolucion("Despeje directo", "x=" + num(x)));
             rr.latexFinal = "x=" + num(x);
             rr.resultado = eq;
+            cerrar(rr);
             return rr;
         }
         if (isFrac(R) && kL != null) {
             double[] numAB = linearAB(R.hijos.get(0), var);
             double[] denAB = linearAB(R.hijos.get(1), var);
-            if (numAB == null || denAB == null) return rr;
+            if (numAB == null || denAB == null) { cerrar(rr); return rr; }
             double a = numAB[0], b = numAB[1], c = denAB[0], d = denAB[1], k = kL;
             double denx = a - k * c;
             if (Math.abs(denx) < 1e-15) return sinSolucion(rr);
             double x = (k * d - b) / denx;
-            rr.pasos.add(new PasoResolucion("x=" + num(x)));
+            rr.pasos.add(new PasoResolucion("Despeje directo", "x=" + num(x)));
             rr.latexFinal = "x=" + num(x);
             rr.resultado = eq;
+            cerrar(rr);
             return rr;
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -266,12 +309,19 @@ final class NoLinealEspecialResolver {
         Double kL = evaluarConstante(L), kR = evaluarConstante(R);
         if (isReciprocoDeLineal(L, var) && kR != null && Math.abs(kR) > 1e-15) {
             double v = 1.0 / kR;
-            return solveLinear(L.hijos.get(1), v, var, rr);
+            rr.pasos.add(new PasoResolucion("Invertir ambos lados", AstUtils.toTeX(L.hijos.get(1)) + "=" + num(v)));
+            ResultadoResolucion r1 = solveLinear(L.hijos.get(1), v, var, rr);
+            cerrar(r1);
+            return r1;
         }
         if (isReciprocoDeLineal(R, var) && kL != null && Math.abs(kL) > 1e-15) {
             double v = 1.0 / kL;
-            return solveLinear(R.hijos.get(1), v, var, rr);
+            rr.pasos.add(new PasoResolucion("Invertir ambos lados", AstUtils.toTeX(R.hijos.get(1)) + "=" + num(v)));
+            ResultadoResolucion r1 = solveLinear(R.hijos.get(1), v, var, rr);
+            cerrar(r1);
+            return r1;
         }
+        cerrar(rr);
         return rr;
     }
 
@@ -281,32 +331,34 @@ final class NoLinealEspecialResolver {
 
     private static ResultadoResolucion solveLinear(NodoAST u, double K, String var, ResultadoResolucion rr, boolean domainNote) {
         double[] ab = linearAB(u, var);
-        if (ab == null) return rr;
+        if (ab == null) { cerrar(rr); return rr; }
         double a = ab[0], b = ab[1];
-        if (Math.abs(a) < 1e-15) return rr;
+        if (Math.abs(a) < 1e-15) { cerrar(rr); return rr; }
+        if (domainNote) rr.pasos.add(new PasoResolucion("Dominios válidos", "\\text{Análisis de dominio aplicado}"));
+        rr.pasos.add(new PasoResolucion("Igualación", AstUtils.toTeX(u) + "=" + num(K)));
         double x = (K - b) / a;
-        if (domainNote) rr.pasos.add(new PasoResolucion("\\text{Dominios válidos considerados}"));
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(u) + "=" + num(K)));
-        rr.pasos.add(new PasoResolucion("x=" + num(x)));
+        rr.pasos.add(new PasoResolucion("Despeje lineal", "x=" + num(x)));
         rr.latexFinal = "x=" + num(x);
         rr.resultado = u;
+        cerrar(rr);
         return rr;
     }
 
     private static ResultadoResolucion solveLinearFamilies(NodoAST u, double[] r, double[] period, String var, ResultadoResolucion rr) {
         double[] ab = linearAB(u, var);
-        if (ab == null) return rr;
+        if (ab == null) { cerrar(rr); return rr; }
         double a = ab[0], b = ab[1];
-        if (Math.abs(a) < 1e-15) return rr;
+        if (Math.abs(a) < 1e-15) { cerrar(rr); return rr; }
         StringBuilder sol = new StringBuilder();
         for (int i = 0; i < r.length; i++) {
             String branch = "x=\\frac{" + num(r[i]) + "+(" + num(period[i]) + ")n-" + num(b) + "}{" + num(a) + "},\\;n\\in\\mathbb{Z}";
-            rr.pasos.add(new PasoResolucion(branch));
+            rr.pasos.add(new PasoResolucion("Familia " + (i+1), branch));
             if (i > 0) sol.append("\\;\\text{o}\\; ");
             sol.append(branch);
         }
         rr.latexFinal = sol.toString();
         rr.resultado = u;
+        cerrar(rr);
         return rr;
     }
 
@@ -329,17 +381,18 @@ final class NoLinealEspecialResolver {
         ResultadoResolucion rr = new ResultadoResolucion();
         NodoAST eq = buscarNodo(raiz, LexToken.Type.EQUAL);
         String tex = eq != null ? AstUtils.toTeX(eq) : AstUtils.toTeX(raiz);
-        rr.pasos.add(new PasoResolucion(tex));
-        rr.pasos.add(new PasoResolucion("\\text{" + titulo + "}"));
+        rr.pasos.add(new PasoResolucion("Expresión inicial", tex));
+        rr.pasos.add(new PasoResolucion("Clasificación", "\\text{" + titulo + "}"));
         rr.resultado = eq != null ? eq : raiz;
         rr.latexFinal = tex;
+        cerrar(rr);
         return rr;
     }
 
     private static ResultadoResolucion base(NodoAST eq, String titulo) {
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(eq)));
-        rr.pasos.add(new PasoResolucion("\\text{" + titulo + "}"));
+        rr.pasos.add(new PasoResolucion("Expresión inicial", AstUtils.toTeX(eq)));
+        rr.pasos.add(new PasoResolucion("Clasificación", "\\text{" + titulo + "}"));
         rr.resultado = eq;
         rr.latexFinal = AstUtils.toTeX(eq);
         return rr;
@@ -366,8 +419,9 @@ final class NoLinealEspecialResolver {
     }
 
     private static ResultadoResolucion sinSolucion(ResultadoResolucion rr) {
-        rr.pasos.add(new PasoResolucion("\\text{Sin solución real}"));
+        rr.pasos.add(new PasoResolucion("Conclusión", "\\text{Sin solución real}"));
         rr.latexFinal = "\\text{Sin solución real}";
+        cerrar(rr);
         return rr;
     }
 
@@ -555,5 +609,11 @@ final class NoLinealEspecialResolver {
             if (r != null) return r;
         }
         return null;
+    }
+
+    private static void cerrar(ResultadoResolucion rr) {
+        if (rr != null && rr.latexFinal != null && !rr.latexFinal.isEmpty()) {
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
+        }
     }
 }

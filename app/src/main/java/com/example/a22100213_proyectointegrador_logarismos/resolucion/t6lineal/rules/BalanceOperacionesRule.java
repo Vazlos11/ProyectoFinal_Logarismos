@@ -18,6 +18,7 @@ public final class BalanceOperacionesRule implements T6Rule {
 
     @Override
     public boolean applies(NodoAST raiz, ResultadoSemantico rs) {
+        varName = null;
         if (!isEq(raiz)) return false;
         Set<String> vars = new LinkedHashSet<>();
         countVars(raiz, vars);
@@ -41,13 +42,13 @@ public final class BalanceOperacionesRule implements T6Rule {
 
         ResultadoResolucion rr = new ResultadoResolucion();
         rr.pasos = new LinkedList<>();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L) + " = " + AstUtils.toTeX(R)));
+        rr.pasos.add(new PasoResolucion("Ecuación inicial", texEq(L, R)));
 
         NodoAST factor = denominadoresFactor(X);
         if (!isOne(factor)) {
             X = simplifyNumeric(mul(factor, X));
             K = simplifyNumeric(mul(factor, K));
-            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+            rr.pasos.add(new PasoResolucion("Eliminar denominadores (multiplicar por factor común)", texEq(X, K)));
         }
 
         while (true) {
@@ -62,13 +63,13 @@ public final class BalanceOperacionesRule implements T6Rule {
                 if (aVar && isNumeric(B)) {
                     K = simplifyNumeric(sub(K, B));
                     X = A;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Restar término constante a ambos lados", texEq(X, K)));
                     continue;
                 }
                 if (bVar && isNumeric(A)) {
                     K = simplifyNumeric(sub(K, A));
                     X = B;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Restar término constante a ambos lados", texEq(X, K)));
                     continue;
                 }
                 if (aVar && bVar) {
@@ -80,7 +81,7 @@ public final class BalanceOperacionesRule implements T6Rule {
                         K = simplifyNumeric(sub(K, A));
                         X = B;
                     }
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Trasladar término para aislar la variable", texEq(X, K)));
                     continue;
                 }
                 break;
@@ -93,13 +94,13 @@ public final class BalanceOperacionesRule implements T6Rule {
                 if (aVar && isNumeric(B)) {
                     K = simplifyNumeric(add(K, B));
                     X = A;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Sumar término constante a ambos lados", texEq(X, K)));
                     continue;
                 }
                 if (bVar && isNumeric(A)) {
                     X = B;
                     K = simplifyNumeric(sub(A, K));
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Reordenar para aislar término con variable", texEq(X, K)));
                     continue;
                 }
                 if (aVar && bVar) {
@@ -108,10 +109,10 @@ public final class BalanceOperacionesRule implements T6Rule {
                         K = simplifyNumeric(add(K, B));
                         X = A;
                     } else {
-                        K = simplifyNumeric(sub(A, K));
                         X = B;
+                        K = simplifyNumeric(sub(A, K));
                     }
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Reordenar para aislar la variable", texEq(X, K)));
                     continue;
                 }
                 break;
@@ -123,13 +124,13 @@ public final class BalanceOperacionesRule implements T6Rule {
                 if (aVar && isNumeric(B)) {
                     if (!isZero(B)) K = simplifyNumeric(div(K, B));
                     X = A;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Dividir entre coeficiente", texEq(X, K)));
                     continue;
                 }
                 if (bVar && isNumeric(A)) {
                     if (!isZero(A)) K = simplifyNumeric(div(K, A));
                     X = B;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Dividir entre coeficiente", texEq(X, K)));
                     continue;
                 }
                 break;
@@ -138,17 +139,17 @@ public final class BalanceOperacionesRule implements T6Rule {
             if (isOp(X, LexToken.Type.DIV)) {
                 NodoAST A = left(X), B = right(X);
                 boolean aVar = containsVar(A, varName), bVar = containsVar(B, varName);
-                if (aVar && !isZero(B) && isNumeric(B)) {
+                if (aVar && isNumeric(B) && !isZero(B)) {
                     K = simplifyNumeric(mul(K, B));
                     X = A;
-                    rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                    rr.pasos.add(new PasoResolucion("Multiplicar para eliminar denominador", texEq(X, K)));
                     continue;
                 }
                 if (bVar) {
-                    if (!isZero(K)) {
+                    if (!isZero(K) && isNumeric(A)) {
                         X = B;
                         K = simplifyNumeric(div(A, K));
-                        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                        rr.pasos.add(new PasoResolucion("Despeje por reciprocidad", texEq(X, K)));
                         continue;
                     }
                 }
@@ -166,7 +167,7 @@ public final class BalanceOperacionesRule implements T6Rule {
             if (!isOne(coef) && !isZero(coef)) {
                 K = simplifyNumeric(div(K, coef));
                 X = varOf(X);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K)));
+                rr.pasos.add(new PasoResolucion("Dividir entre coeficiente de la variable", texEq(X, K)));
             } else {
                 X = varOf(X);
             }
@@ -178,17 +179,16 @@ public final class BalanceOperacionesRule implements T6Rule {
             if (LX.ok && LK.ok) {
                 double a = LX.a - LK.a;
                 double b = LK.b - LX.b;
-
                 NodoAST lhs = mul(num(a), varNode());
                 NodoAST rhs = num(b);
-                rr.pasos.add(new PasoResolucion(AstUtils.toTeX(lhs) + " = " + AstUtils.toTeX(rhs)));
+                rr.pasos.add(new PasoResolucion("Reagrupar términos lineales", texEq(lhs, rhs)));
 
                 if (Math.abs(a) < 1e-12) {
                     if (Math.abs(b) < 1e-12) {
-                        rr.pasos.add(new PasoResolucion("\\text{Identidad: infinitas soluciones}"));
+                        rr.pasos.add(new PasoResolucion("Identidad", "\\text{Infinitas soluciones}"));
                         rr.latexFinal = "\\text{Infinitas soluciones}";
                     } else {
-                        rr.pasos.add(new PasoResolucion("\\text{Inconsistente: sin solución}"));
+                        rr.pasos.add(new PasoResolucion("Inconsistencia", "\\text{Sin solución}"));
                         rr.latexFinal = "\\text{Sin solución}";
                     }
                     rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), lhs, rhs);
@@ -196,20 +196,26 @@ public final class BalanceOperacionesRule implements T6Rule {
                 }
 
                 NodoAST sol = div(rhs, num(a));
-                rr.pasos.add(new PasoResolucion("x = " + AstUtils.toTeX(sol)));
-                rr.latexFinal = "x = " + AstUtils.toTeX(sol);
+                String texVar = AstUtils.toTeX(varNode());
+                String texSol = AstUtils.toTeX(sol);
+                rr.pasos.add(new PasoResolucion("Despeje final", texVar + " = " + texSol));
+                rr.latexFinal = texVar + " = " + texSol;
                 rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), varNode(), sol);
                 return rr;
             }
         }
 
         if (!isVariable(X)) {
-            rr.pasos.add(new PasoResolucion("\\text{No pudo aislarse completamente}"));
-            rr.latexFinal = AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K);
+            rr.pasos.add(new PasoResolucion("No pudo aislarse completamente", texEq(X, K)));
+            rr.latexFinal = texEq(X, K);
+            rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), X, K);
             return rr;
         }
 
-        rr.latexFinal = AstUtils.toTeX(X) + " = " + AstUtils.toTeX(K);
+        String texVar = AstUtils.toTeX(varNode());
+        String texK = AstUtils.toTeX(K);
+        rr.pasos.add(new PasoResolucion("Aislación lograda", texVar + " = " + texK));
+        rr.latexFinal = texVar + " = " + texK;
         rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), X, K);
         return rr;
     }
@@ -238,7 +244,6 @@ public final class BalanceOperacionesRule implements T6Rule {
             case MUL: {
                 Linear L = lin(left(n)), R = lin(right(n));
                 if (!L.ok || !R.ok) return new Linear(false,0,0);
-
                 if (Math.abs(L.a) > 1e-12 && Math.abs(R.a) > 1e-12) return new Linear(false,0,0);
                 double a = L.a*R.b + R.a*L.b;
                 double b = L.b*R.b;
@@ -434,4 +439,6 @@ public final class BalanceOperacionesRule implements T6Rule {
             default: return 0;
         }
     }
+
+    private String texEq(NodoAST a, NodoAST b) { return AstUtils.toTeX(a) + " = " + AstUtils.toTeX(b); }
 }

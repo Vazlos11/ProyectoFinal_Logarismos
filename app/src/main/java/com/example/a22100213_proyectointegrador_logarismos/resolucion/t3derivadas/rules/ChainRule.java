@@ -16,105 +16,131 @@ public final class ChainRule implements DerivativeRule {
     public ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs) {
         DerivativeUtils.DerivInfo di = DerivativeUtils.localizarDerivada(raiz);
         ResultadoResolucion rr = new ResultadoResolucion();
-        if (di == null || di.fun == null) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
+        if (di == null || di.fun == null) {
+            rr.resultado = raiz;
+            rr.latexFinal = AstUtils.toTeX(raiz);
+            return rr;
+        }
 
         NodoAST g = di.fun;
         NodoAST inner = null;
+        NodoAST upr = null;
         NodoAST res = null;
         String var = diffVarName(di.dif);
 
         if (g.token.type == LexToken.Type.LN || g.token.type == LexToken.Type.LOG) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             res = DerivativeUtils.div(upr, inner);
         } else if (g.token.type == LexToken.Type.LOG_BASE10) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST denom = DerivativeUtils.mul(inner, AstUtils.number(Math.log(10.0)));
             res = DerivativeUtils.div(upr, denom);
         } else if (g.token.type == LexToken.Type.LOG_BASE2) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST denom = DerivativeUtils.mul(inner, AstUtils.number(Math.log(2.0)));
             res = DerivativeUtils.div(upr, denom);
         } else if (g.token.type == LexToken.Type.TRIG_SIN) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             res = DerivativeUtils.mul(DerivativeUtils.cos(inner), upr);
         } else if (g.token.type == LexToken.Type.TRIG_COS) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.sin(inner), upr));
         } else if (g.token.type == LexToken.Type.TRIG_TAN) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST cos2 = DerivativeUtils.pow(DerivativeUtils.cos(inner), AstUtils.number(2.0));
             res = DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), cos2), upr);
         } else if (g.token.type == LexToken.Type.TRIG_COT) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST sin2 = DerivativeUtils.pow(DerivativeUtils.sin(inner), AstUtils.number(2.0));
             res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(AstUtils.number(1.0), sin2), upr));
         } else if (g.token.type == LexToken.Type.TRIG_SEC) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST cos2 = DerivativeUtils.pow(DerivativeUtils.cos(inner), AstUtils.number(2.0));
             res = DerivativeUtils.mul(DerivativeUtils.div(DerivativeUtils.sin(inner), cos2), upr);
         } else if (g.token.type == LexToken.Type.TRIG_CSC) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST sin2 = DerivativeUtils.pow(DerivativeUtils.sin(inner), AstUtils.number(2.0));
             res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.mul(DerivativeUtils.div(DerivativeUtils.cos(inner), sin2), upr));
         } else if (g.token.type == LexToken.Type.TRIG_ARCSIN) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST u2 = DerivativeUtils.pow(inner, AstUtils.number(2.0));
             NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0);
             NodoAST denom = DerivativeUtils.sqrt(oneMinus);
             res = DerivativeUtils.div(upr, denom);
         } else if (g.token.type == LexToken.Type.TRIG_ARCCOS) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST u2 = DerivativeUtils.pow(inner, AstUtils.number(2.0));
             NodoAST oneMinus = AstUtils.bin(LexToken.Type.SUB, AstUtils.number(1.0), u2, "-", 0);
             NodoAST denom = DerivativeUtils.sqrt(oneMinus);
             res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(upr, denom));
         } else if (g.token.type == LexToken.Type.TRIG_ARCTAN) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST u2 = DerivativeUtils.pow(inner, AstUtils.number(2.0));
             NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0);
             res = DerivativeUtils.div(upr, onePlus);
         } else if (g.token.type == LexToken.Type.TRIG_ARCCOT) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST u2 = DerivativeUtils.pow(inner, AstUtils.number(2.0));
             NodoAST onePlus = AstUtils.bin(LexToken.Type.SUM, AstUtils.number(1.0), u2, "+", 0);
             res = DerivativeUtils.mul(AstUtils.number(-1.0), DerivativeUtils.div(upr, onePlus));
         } else if (g.token.type == LexToken.Type.RADICAL) {
             inner = g.hijos.get(0);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             NodoAST denom = DerivativeUtils.mul(AstUtils.number(2.0), DerivativeUtils.sqrt(inner));
             res = DerivativeUtils.div(upr, denom);
         } else if (g.token.type == LexToken.Type.EXP && g.hijos.size() == 2 && g.hijos.get(0).token.type == LexToken.Type.CONST_E) {
             inner = g.hijos.get(1);
-            NodoAST upr = quickDeriv(inner, var);
+            upr = quickDeriv(inner, var);
             res = DerivativeUtils.mul(DerivativeUtils.ePow(inner), upr);
         } else if (g.token.type == LexToken.Type.EXP && g.hijos.size() == 2) {
-            inner = g.hijos.get(0);
-            Double n = AstUtils.evalConst(g.hijos.get(1));
-            if (n != null) {
-                NodoAST upr = quickDeriv(inner, var);
-                res = DerivativeUtils.mul(DerivativeUtils.mul(AstUtils.number(n), DerivativeUtils.pow(inner, AstUtils.number(n - 1.0))), upr);
+            NodoAST base = g.hijos.get(0);
+            NodoAST expo = g.hijos.get(1);
+            if (base != null && expo != null) {
+                if (base.token.type == LexToken.Type.INTEGER || base.token.type == LexToken.Type.DECIMAL) {
+                    Double a = AstUtils.evalConst(base);
+                    if (a != null) {
+                        inner = expo;
+                        upr = quickDeriv(inner, var);
+                        NodoAST aPowU = DerivativeUtils.pow(AstUtils.number(a), inner);
+                        res = DerivativeUtils.mul(DerivativeUtils.mul(aPowU, AstUtils.number(Math.log(a))), upr);
+                    }
+                } else {
+                    Double n = AstUtils.evalConst(expo);
+                    if (n != null) {
+                        inner = base;
+                        upr = quickDeriv(inner, var);
+                        res = DerivativeUtils.mul(DerivativeUtils.mul(AstUtils.number(n), DerivativeUtils.pow(inner, AstUtils.number(n - 1.0))), upr);
+                    }
+                }
             }
         }
 
-        if (res == null) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
+        if (res == null) {
+            rr.resultado = raiz;
+            rr.latexFinal = AstUtils.toTeX(raiz);
+            return rr;
+        }
+
         NodoAST nuevo = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, res);
         rr.resultado = nuevo;
         rr.latexFinal = AstUtils.toTeX(nuevo);
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(res)));
-        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
+        if (upr != null) rr.pasos.add(new PasoResolucion("Derivada interna g'(x)", AstUtils.toTeX(upr)));
+        rr.pasos.add(new PasoResolucion("Regla de la cadena", AstUtils.toTeX(res)));
+        rr.pasos.add(new PasoResolucion("Sustitución en la expresión", rr.latexFinal));
         return rr;
     }
 

@@ -4,4 +4,6 @@ import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
 
-public interface DerivativeRule { ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs); }
+public interface DerivativeRule {
+    ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs);
+}

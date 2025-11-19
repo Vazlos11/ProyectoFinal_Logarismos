@@ -25,31 +25,74 @@ public final class RationalPFDIntegrator implements IntegratorRule {
         if (ii == null || ii.cuerpo == null || ii.var == null) return null;
         String x = ii.var;
 
-        Decomp d = matchRationalWithLinearDen(ii.cuerpo, x);
-        if (d == null) return null;
-
-        List<Term> terms = solveCoeffsDistinctLinear(d, x);
-        if (terms == null || terms.isEmpty()) return null;
+        ArrayList<PasoResolucion> pasos = new ArrayList<>();
+        pasos.add(new PasoResolucion("Detección", "\\int \\frac{P(x)}{Q(x)}\\,d" + x));
 
         NodoAST F = null;
-        for (Term t : terms) {
-            double c = t.A / t.a;
-            NodoAST ln = IntegralUtils.lnClone(linearNode(t.a, t.b, x));
-            NodoAST term = IntegralUtils.mulC(ln, c);
-            F = (F == null) ? term : AstUtils.bin(LexToken.Type.SUM, F, term, "+", 5);
+
+        Decomp d = matchRationalWithLinearDen(ii.cuerpo, x);
+        if (d != null) {
+            pasos.add(new PasoResolucion("Factorización del denominador", AstUtils.toTeX(ii.cuerpo)));
+
+            List<Term> terms = solveCoeffsDistinctLinear(d, x);
+            if (terms == null || terms.isEmpty()) return null;
+            pasos.add(new PasoResolucion("Cálculo de coeficientes A_i", "A_i=\\frac{P(r_i)}{Q'(r_i)}"));
+
+            NodoAST descomp = null;
+            for (Term t : terms) {
+                NodoAST frac = AstUtils.bin(
+                        LexToken.Type.DIV,
+                        AstUtils.number(t.A),
+                        linearNode(t.a, t.b, x),
+                        "/",
+                        4
+                );
+                pasos.add(new PasoResolucion("Término parcial", AstUtils.toTeX(frac)));
+                descomp = descomp == null ? frac : AstUtils.bin(LexToken.Type.SUM, descomp, frac, "+", 5);
+            }
+
+            pasos.add(new PasoResolucion("Descomposición en fracciones parciales", AstUtils.toTeX(descomp)));
+
+            F = null;
+            for (Term t : terms) {
+                double c = t.A / t.a;
+                NodoAST ln = IntegralUtils.lnClone(linearNode(t.a, t.b, x));
+                NodoAST term = IntegralUtils.mulC(ln, c);
+                pasos.add(new PasoResolucion("Integración del término A/(" + t.a + "x+" + t.b + ")", AstUtils.toTeX(term)));
+                F = (F == null) ? term : AstUtils.bin(LexToken.Type.SUM, F, term, "+", 5);
+            }
+        } else {
+            F = integrarLinealSobreCuadratica(ii.cuerpo, x, pasos);
         }
+
         if (F == null) return null;
 
-        NodoAST out = definida ? IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup) : IntegralUtils.addC(F);
-        NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, out, ii.padre, out);
+        pasos.add(new PasoResolucion("Suma de antiderivadas", AstUtils.toTeX(F)));
 
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.resultado = nuevo;
-        rr.latexFinal = AstUtils.toTeX(nuevo);
-        String tex = AstUtils.toTeX(ii.cuerpo);
-        rr.pasos.add(new PasoResolucion("\\text{Fracciones parciales sobre } " + tex));
-        rr.pasos.add(new PasoResolucion(rr.latexFinal));
-        return rr;
+        rr.pasos = pasos;
+
+        if (!definida) {
+            NodoAST fin = IntegralUtils.addC(F);
+            pasos.add(new PasoResolucion("Antiderivada", AstUtils.toTeX(fin)));
+            NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(fin), ii.padre, fin);
+            rr.resultado = nuevo;
+            rr.latexFinal = AstUtils.toTeX(nuevo);
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
+            return rr;
+        } else {
+            NodoAST supEval = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, ii.sup);
+            NodoAST infEval = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, ii.inf);
+            NodoAST val = IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup);
+            pasos.add(new PasoResolucion("F(b)", AstUtils.toTeX(supEval)));
+            pasos.add(new PasoResolucion("F(a)", AstUtils.toTeX(infEval)));
+            pasos.add(new PasoResolucion("F(b)-F(a)", AstUtils.toTeX(val)));
+            NodoAST nuevo = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(val), ii.padre, val);
+            rr.resultado = nuevo;
+            rr.latexFinal = AstUtils.toTeX(nuevo);
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
+            return rr;
+        }
     }
 
     private static class Decomp {
@@ -233,22 +276,22 @@ public final class RationalPFDIntegrator implements IntegratorRule {
                 double[] A = coeff012(n.hijos.get(0), v);
                 double[] B = coeff012(n.hijos.get(1), v);
                 if (A == null || B == null) return null;
-                double c0 = A[0]*B[0];
-                double c1 = A[0]*B[1] + A[1]*B[0];
-                double c2 = A[0]*B[2] + A[1]*B[1] + A[2]*B[0];
+                double c0 = A[0] * B[0];
+                double c1 = A[0] * B[1] + A[1] * B[0];
+                double c2 = A[0] * B[2] + A[1] * B[1] + A[2] * B[0];
                 return new double[]{c0, c1, c2};
             }
             case EXP: {
                 NodoAST base = n.hijos.get(0);
-                NodoAST ex   = n.hijos.get(1);
+                NodoAST ex = n.hijos.get(1);
                 Double e = AstUtils.evalConst(ex);
                 if (e == null) return null;
-                int k = (int)Math.rint(e);
+                int k = (int) Math.rint(e);
                 if (Math.abs(e - k) > 1e-12 || k < 0) return null;
                 if (base.token != null && base.token.type == LexToken.Type.VARIABLE && v.equals(base.token.value)) {
-                    if (k == 0) return new double[]{1.0,0.0,0.0};
-                    if (k == 1) return new double[]{0.0,1.0,0.0};
-                    if (k == 2) return new double[]{0.0,0.0,1.0};
+                    if (k == 0) return new double[]{1.0, 0.0, 0.0};
+                    if (k == 1) return new double[]{0.0, 1.0, 0.0};
+                    if (k == 2) return new double[]{0.0, 0.0, 1.0};
                     return null;
                 }
                 Double cst = AstUtils.evalConst(base);
@@ -279,5 +322,68 @@ public final class RationalPFDIntegrator implements IntegratorRule {
     private static NodoAST linearNode(double a, double b, String v) {
         NodoAST ax = AstUtils.bin(LexToken.Type.MUL, AstUtils.number(a), AstUtils.atom(LexToken.Type.VARIABLE, v, 1), "*", 6);
         return AstUtils.bin(LexToken.Type.SUM, ax, AstUtils.number(b), "+", 5);
+    }
+
+    private NodoAST integrarLinealSobreCuadratica(NodoAST n, String v, List<PasoResolucion> pasos) {
+        if (n == null || n.token == null || n.token.type != LexToken.Type.DIV || n.hijos.size() != 2) return null;
+        NodoAST num = n.hijos.get(0);
+        NodoAST den = n.hijos.get(1);
+
+        Integer dn = degreePoly(den, v);
+        Integer nn = degreePoly(num, v);
+        if (dn == null || nn == null || dn != 2 || nn > 1) return null;
+
+        double[] cd = coeff012(den, v);
+        double[] cn = coeff012(num, v);
+        if (cd == null || cn == null) return null;
+
+        double a = cd[2];
+        double b = cd[1];
+        double c = cd[0];
+        if (Math.abs(a) < 1e-15) return null;
+
+        double alpha = cn[1];
+        double beta = cn[0];
+
+        double delta = 4.0 * a * c - b * b;
+        if (!(delta > 1e-12)) return null;
+
+        double lambda = alpha / (2.0 * a);
+        double mu = beta - lambda * b;
+
+        pasos.add(new PasoResolucion("Denominador cuadrático irreductible", AstUtils.toTeX(den)));
+
+        String numTex = AstUtils.toTeX(num);
+        String qTex = AstUtils.toTeX(den);
+        pasos.add(new PasoResolucion(
+                "Descomposición del numerador",
+                numTex + "= " + trimNum(lambda) + "\\,Q'(x)+" + trimNum(mu)
+        ));
+        pasos.add(new PasoResolucion(
+                "Separación de la fracción",
+                "\\int \\frac{" + numTex + "}{" + qTex + "}\\,d" + v
+                        + "=" + trimNum(lambda) + "\\int \\frac{Q'(x)}{Q(x)}\\,d" + v
+                        + "+" + trimNum(mu) + "\\int \\frac{d" + v + "}{" + qTex + "}"
+        ));
+
+        NodoAST lnQ = IntegralUtils.lnClone(den);
+        NodoAST termLn = IntegralUtils.mulC(lnQ, lambda);
+
+        double s = Math.sqrt(delta);
+        NodoAST argNum = linearNode(2.0 * a, b, v);
+        NodoAST arg = AstUtils.bin(LexToken.Type.DIV, argNum, AstUtils.number(s), "/", 6);
+        NodoAST atan = AstUtils.un(LexToken.Type.TRIG_ARCTAN, arg, "arctan", 12);
+        double coefAtan = mu * (2.0 / s);
+        NodoAST termAtan = IntegralUtils.mulC(atan, coefAtan);
+
+        NodoAST F = AstUtils.bin(LexToken.Type.SUM, termLn, termAtan, "+", 5);
+        pasos.add(new PasoResolucion("Antiderivada básica", AstUtils.toTeX(F)));
+        return F;
+    }
+
+    private static String trimNum(double v) {
+        String s = Double.toString(v);
+        if (s.endsWith(".0")) s = s.substring(0, s.length() - 2);
+        return s;
     }
 }

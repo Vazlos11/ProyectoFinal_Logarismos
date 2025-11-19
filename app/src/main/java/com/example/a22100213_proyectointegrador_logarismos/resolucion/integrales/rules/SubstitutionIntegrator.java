@@ -9,6 +9,8 @@ import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoR
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegralUtils;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.IntegratorRule;
 
+import java.util.ArrayList;
+
 public final class SubstitutionIntegrator implements IntegratorRule {
 
     private final boolean definida;
@@ -22,26 +24,68 @@ public final class SubstitutionIntegrator implements IntegratorRule {
         IntegralUtils.IntegralInfo ii = IntegralUtils.localizarIntegral(raiz, definida);
         if (ii == null || ii.cuerpo == null || ii.var == null) return null;
 
-        NodoAST F = IntegralUtils.integralRec(ii.cuerpo, ii.var);
+        String x = ii.var;
+        ArrayList<PasoResolucion> pasos = new ArrayList<>();
+
+        String intTex = (definida
+                ? "\\int_{" + AstUtils.toTeX(ii.inf) + "}^{" + AstUtils.toTeX(ii.sup) + "} "
+                : "\\int ") + AstUtils.toTeX(ii.cuerpo) + "\\, d" + x;
+        pasos.add(new PasoResolucion("Detección (sustitución)", intTex));
+
+        NodoAST u = IntegralUtils.candidatoInterior(ii.cuerpo);
+        if (u == null) return null;
+
+        pasos.add(new PasoResolucion("Elección de sustitución", "u=" + AstUtils.toTeX(u)));
+
+        NodoAST du = IntegralUtils.derivadaSimple(u, x);
+        if (du == null) return null;
+        pasos.add(new PasoResolucion("Diferencial", "du=" + AstUtils.toTeX(du) + "\\,dx"));
+
+        NodoAST F = IntegralUtils.integralRec(ii.cuerpo, x);
         if (F == null) return null;
 
-        NodoAST out = definida
-                ? IntegralUtils.evalDefinida(F, ii.var, ii.inf, ii.sup)
-                : IntegralUtils.addC(F);
+        String cuerpoU = AstUtils.toTeX(IntegralUtils.replaceAllEqualByVar(ii.cuerpo, u, "u"));
+        pasos.add(new PasoResolucion("Reexpresión del integrando", "\\;f(g(x))g'(x)\\,dx \\;\\Rightarrow\\; f(u)\\,du"));
+        pasos.add(new PasoResolucion("Integral en u", "\\int f(u)\\,du \\;\\text{(con } f(u)\\text{ a partir de } " + cuerpoU + ")"));
 
-        NodoAST nuevaRaiz = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(out), ii.padre, out);
+        if (!definida) {
+            String FuTex = AstUtils.toTeX(IntegralUtils.replaceAllEqualByVar(AstUtils.cloneTree(F), u, "u"));
+            pasos.add(new PasoResolucion("Antiderivada en u", FuTex + "+C"));
+            pasos.add(new PasoResolucion("Retro-sustitución", AstUtils.toTeX(IntegralUtils.addC(AstUtils.cloneTree(F)))));
 
-        ResultadoResolucion rr = new ResultadoResolucion();
-        rr.resultado = nuevaRaiz;
-        rr.latexFinal = AstUtils.toTeX(nuevaRaiz);
+            NodoAST out = IntegralUtils.addC(F);
+            NodoAST nuevaRaiz = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(out), ii.padre, out);
 
-        if (definida) {
-            NodoAST paso = IntegralUtils.evalDefinida(AstUtils.cloneTree(F), ii.var, ii.inf, ii.sup);
-            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(paso)));
+            ResultadoResolucion rr = new ResultadoResolucion();
+            rr.pasos = pasos;
+            rr.resultado = nuevaRaiz;
+            rr.latexFinal = AstUtils.toTeX(nuevaRaiz);
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
+            return rr;
         } else {
-            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(IntegralUtils.addC(AstUtils.cloneTree(F)))));
-        }
+            NodoAST ua = IntegralUtils.sustituirVar(AstUtils.cloneTree(u), x, AstUtils.cloneTree(ii.inf));
+            NodoAST ub = IntegralUtils.sustituirVar(AstUtils.cloneTree(u), x, AstUtils.cloneTree(ii.sup));
+            pasos.add(new PasoResolucion("Cambio de límites", "a'=" + AstUtils.toTeX(ua) + ",\\; b'=" + AstUtils.toTeX(ub)));
 
-        return rr;
+            pasos.add(new PasoResolucion("Integral definida en u",
+                    "\\int_{" + AstUtils.toTeX(ua) + "}^{" + AstUtils.toTeX(ub) + "} f(u)\\,du"));
+
+            NodoAST supEval = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, ii.sup);
+            NodoAST infEval = IntegralUtils.sustituirVar(AstUtils.cloneTree(F), x, ii.inf);
+            NodoAST val = IntegralUtils.evalDefinida(F, x, ii.inf, ii.sup);
+
+            pasos.add(new PasoResolucion("F(b)", AstUtils.toTeX(supEval)));
+            pasos.add(new PasoResolucion("F(a)", AstUtils.toTeX(infEval)));
+            pasos.add(new PasoResolucion("F(b)-F(a)", AstUtils.toTeX(val)));
+
+            NodoAST nuevaRaiz = IntegralUtils.reemplazar(ii.nodoIntegral, AstUtils.cloneTree(val), ii.padre, val);
+
+            ResultadoResolucion rr = new ResultadoResolucion();
+            rr.pasos = pasos;
+            rr.resultado = nuevaRaiz;
+            rr.latexFinal = AstUtils.toTeX(nuevaRaiz);
+            rr.pasos.add(new PasoResolucion(rr.latexFinal));
+            return rr;
+        }
     }
 }

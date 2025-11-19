@@ -23,6 +23,7 @@ public final class T2AlgebraResolver {
 
     public static ResultadoResolucion resolver(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
         String before = AstUtils.toTeX(raiz);
 
         if (!contieneVariable(raiz)) {
@@ -37,7 +38,7 @@ public final class T2AlgebraResolver {
                     rr.resultado = AstUtils.number(w);
                     rr.latexFinal = AstUtils.toTeX(rr.resultado);
                 }
-                rr.pasos.add(new PasoResolucion("\\text{Evaluación directa (T2)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+                rr.pasos.add(new PasoResolucion("Evaluación algebraica", rr.latexFinal));
                 return rr;
             }
         }
@@ -46,12 +47,12 @@ public final class T2AlgebraResolver {
         if (simpl != null && simpl != raiz) {
             String after = AstUtils.toTeX(simpl);
             if (!after.equals(before)) {
-                rr.pasos.add(new PasoResolucion("\\text{Simplificar (T2)}\\; " + before + "\\;\\Rightarrow\\; " + after));
+                rr.pasos.add(new PasoResolucion("Simplificación (T2)", after));
                 ResultadoResolucion sub = MotorResolucion.resolver(
                         simpl,
                         com.example.a22100213_proyectointegrador_logarismos.Semantico.AnalisisSemantico.analizar(simpl)
                 );
-                rr.pasos.addAll(sub.pasos);
+                if (sub.pasos != null) rr.pasos.addAll(sub.pasos);
                 rr.resultado = sub.resultado;
                 rr.latexFinal = sub.latexFinal;
                 return rr;
@@ -62,24 +63,22 @@ public final class T2AlgebraResolver {
             Double v2 = AstUtils.evalConst(raiz);
             if (v2 != null && Double.isFinite(v2)) {
                 double w2 = (v2 == 0.0 ? 0.0 : v2);
-                String after2;
                 if (angleMode == AngleMode.DEGREES && esInversaTrig(raiz)) {
                     w2 = Math.toDegrees(w2);
                     rr.resultado = AstUtils.number(w2);
-                    after2 = toTeXGrados(w2);
+                    rr.latexFinal = toTeXGrados(w2);
                 } else {
                     rr.resultado = AstUtils.number(w2);
-                    after2 = AstUtils.toTeX(rr.resultado);
+                    rr.latexFinal = AstUtils.toTeX(rr.resultado);
                 }
-                rr.latexFinal = after2;
-                rr.pasos.add(new PasoResolucion("\\text{Evaluación directa (T2)}\\; " + before + "\\;\\Rightarrow\\; " + after2));
+                rr.pasos.add(new PasoResolucion("Evaluación algebraica", rr.latexFinal));
                 return rr;
             }
         }
 
         rr.resultado = raiz;
         rr.latexFinal = before;
-        rr.pasos.add(new PasoResolucion("\\text{Sin cambio (T2)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+        rr.pasos.add(new PasoResolucion("Sin cambio (T2)", rr.latexFinal));
         return rr;
     }
 

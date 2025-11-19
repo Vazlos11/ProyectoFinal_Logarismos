@@ -4,8 +4,8 @@ import com.example.a22100213_proyectointegrador_logarismos.LexToken;
 import com.example.a22100213_proyectointegrador_logarismos.NodoAST;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.MetodoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion;
-import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
+import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.Resolver;
@@ -24,15 +24,18 @@ public class T7PolynomialResolver implements Resolver {
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
         MetodoResolucion m = PlanificadorResolucion.metodo(raiz, rs);
         switch (m) {
-            case ECUACION_CUADRATICA: { return resolverCuadratica(raiz); }
-            case POLI_RUFFINI: { return resolverRuffini(raiz); }
-            case ECUACION_POLINOMICA: { return resolverNewtonRaphson(raiz); }
-            case NEWTON_RAPHSON: { return resolverNewtonRaphson(raiz); }
+            case ECUACION_CUADRATICA: return resolverCuadratica(raiz);
+            case POLI_RUFFINI: return resolverRuffini(raiz);
+            case ECUACION_POLINOMICA: return resolverNewtonRaphson(raiz);
+            case NEWTON_RAPHSON: return resolverNewtonRaphson(raiz);
             default: {
                 ResultadoResolucion rr = new ResultadoResolucion();
-                rr.pasos.add(new PasoResolucion("\\text{Sin método polinómico reconocido}"));
+                String tex = AstUtils.toTeX(raiz);
+                rr.pasos.add(new PasoResolucion("Expresión inicial", tex));
+                rr.pasos.add(new PasoResolucion("Planificador", "\\text{Sin método polinómico reconocido}"));
                 rr.resultado = raiz;
                 rr.latexFinal = "\\text{Sin solución}";
+                rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
                 return rr;
             }
         }
@@ -48,34 +51,42 @@ public class T7PolynomialResolver implements Resolver {
         double c = coeficienteTermino(d, var, 0);
         double disc = b * b - 4 * a * c;
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(eq)));
-        rr.pasos.add(new PasoResolucion("\\text{Fórmula General: } x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"));
+        String texEq = AstUtils.toTeX(eq);
+        rr.pasos.add(new PasoResolucion("Expresión inicial", texEq));
+        rr.pasos.add(new PasoResolucion("Trasladar todo a un lado", AstUtils.toTeX(d) + "=0"));
+        rr.pasos.add(new PasoResolucion("Coeficientes", "a=" + num(a) + ",\\;b=" + num(b) + ",\\;c=" + num(c)));
+        rr.pasos.add(new PasoResolucion("Discriminante", "\\Delta=b^2-4ac=" + num(disc)));
         if (Math.abs(a) < 1e-12) {
             if (Math.abs(b) < 1e-12) {
-                rr.pasos.add(new PasoResolucion("\\text{No es cuadrática}"));
+                rr.pasos.add(new PasoResolucion("Clasificación", "\\text{No es cuadrática}"));
                 rr.resultado = eq;
-                rr.latexFinal = AstUtils.toTeX(eq);
+                rr.latexFinal = texEq;
+                rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
                 return rr;
             }
             double x = -c / b;
-            rr.pasos.add(new PasoResolucion("x=" + num(x)));
+            rr.pasos.add(new PasoResolucion("Despeje lineal", "x=" + num(x)));
             rr.resultado = eq;
             rr.latexFinal = "x=" + num(x);
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
+        rr.pasos.add(new PasoResolucion("Fórmula general", "x=\\dfrac{-b\\pm\\sqrt{\\Delta}}{2a}"));
         if (disc < 0) {
-            rr.pasos.add(new PasoResolucion("\\text{Discriminante negativo}"));
+            rr.pasos.add(new PasoResolucion("Conclusión", "\\text{Discriminante negativo}"));
             rr.resultado = eq;
             rr.latexFinal = "\\text{Sin solución real}";
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
         double sqrt = Math.sqrt(disc);
         double x1 = (-b + sqrt) / (2 * a);
         double x2 = (-b - sqrt) / (2 * a);
         String sol = "x=" + num(x1) + "\\;\\text{o}\\;x=" + num(x2);
-        rr.pasos.add(new PasoResolucion(sol));
+        rr.pasos.add(new PasoResolucion("Sustitución y evaluación", sol));
         rr.resultado = eq;
         rr.latexFinal = sol;
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
     }
 
@@ -85,26 +96,24 @@ public class T7PolynomialResolver implements Resolver {
         NodoAST R = eq.hijos.get(1);
         NodoAST d = resta(L, R);
         Poly p = Poly.fromAST(d, var);
-
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(eq)));
-
+        rr.pasos.add(new PasoResolucion("Expresión inicial", AstUtils.toTeX(eq)));
+        rr.pasos.add(new PasoResolucion("Trasladar todo a un lado", AstUtils.toTeX(d) + "=0"));
         if (p == null || p.deg() <= 0) {
-            rr.pasos.add(new PasoResolucion("\\text{No es polinomio válido}"));
+            rr.pasos.add(new PasoResolucion("Clasificación", "\\text{No es polinomio válido}"));
             rr.resultado = eq;
             rr.latexFinal = AstUtils.toTeX(eq);
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
-
         final double EPS = 1e-10;
         java.util.List<Double> roots = new java.util.ArrayList<>();
-
         while (Math.abs(p.cte()) < EPS && p.deg() >= 1) {
             roots.add(0.0);
-            rr.pasos.add(new PasoResolucion("\\text{Raíz racional } x=0"));
+            rr.pasos.add(new PasoResolucion("Raíz racional", "x=0"));
             p = p.dividePorBinomio(0.0);
+            rr.pasos.add(new PasoResolucion("Cociente", p.toTeX(var)));
         }
-
         while (p.deg() >= 3) {
             java.util.Set<Double> candidatos = divisoresRacionales(p.cte(), p.an());
             boolean extrajo = false;
@@ -114,8 +123,8 @@ public class T7PolynomialResolver implements Resolver {
                     do { p = p.dividePorBinomio(r); mult++; }
                     while (p.deg() >= 1 && Math.abs(p.eval(r)) < EPS);
                     for (int i = 0; i < mult; i++) roots.add(r);
-                    rr.pasos.add(new PasoResolucion("\\text{Raíz racional } x=" + num(r) + (mult > 1 ? ("\\ (\\text{multiplicidad }" + mult + ")") : "")));
-                    rr.pasos.add(new PasoResolucion("\\text{Cociente: } " + p.toTeX(var)));
+                    rr.pasos.add(new PasoResolucion("Raíz racional", "x=" + num(r) + (mult > 1 ? "\\;\\text{(multiplicidad }" + mult + ")" : "")));
+                    rr.pasos.add(new PasoResolucion("Cociente", p.toTeX(var)));
                     extrajo = true;
                     break;
                 }
@@ -124,51 +133,55 @@ public class T7PolynomialResolver implements Resolver {
                 Double rNum = newtonRealPrimeraRaiz(p);
                 if (rNum == null) break;
                 roots.add(rNum);
-                rr.pasos.add(new PasoResolucion("\\text{Raíz numérica aproximada } x\\approx " + num(rNum)));
+                rr.pasos.add(new PasoResolucion("Raíz numérica (Newton–Raphson)", "x\\approx " + num(rNum)));
                 p = p.dividePorBinomio(rNum);
+                rr.pasos.add(new PasoResolucion("Cociente", p.toTeX(var)));
             }
         }
-
         if (p.deg() == 2) {
             double a2 = p.a[2], a1 = p.a[1], a0 = p.a[0];
             double disc = a1 * a1 - 4 * a2 * a0;
-            rr.pasos.add(new PasoResolucion("\\text{Cociente cuadrático: } " + p.toTeX(var)));
+            rr.pasos.add(new PasoResolucion("Cociente cuadrático", p.toTeX(var)));
+            rr.pasos.add(new PasoResolucion("Discriminante", "\\Delta=" + num(disc)));
             if (disc >= 0) {
                 double sqrt = Math.sqrt(disc);
                 roots.add((-a1 + sqrt) / (2 * a2));
                 roots.add((-a1 - sqrt) / (2 * a2));
-                rr.pasos.add(new PasoResolucion("\\text{Fórmula general}"));
+                rr.pasos.add(new PasoResolucion("Fórmula general", "x=\\dfrac{-b\\pm\\sqrt{\\Delta}}{2a}"));
             } else {
-                rr.pasos.add(new PasoResolucion("\\text{Discriminante negativo en el cociente}"));
+                rr.pasos.add(new PasoResolucion("Conclusión", "\\text{Discriminante negativo en el cociente}"));
             }
         } else if (p.deg() == 1) {
             roots.add(-p.a[0] / p.a[1]);
-            rr.pasos.add(new PasoResolucion("\\text{Cociente lineal: } " + p.toTeX(var)));
+            rr.pasos.add(new PasoResolucion("Cociente lineal", p.toTeX(var)));
         }
-
         if (roots.isEmpty()) {
-            rr.pasos.add(new PasoResolucion("\\text{No se hallaron raíces explícitas}"));
+            rr.pasos.add(new PasoResolucion("Conclusión", "\\text{No se hallaron raíces explícitas}"));
             rr.resultado = eq;
             rr.latexFinal = AstUtils.toTeX(eq);
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
-
         java.util.LinkedHashSet<String> uniq = new java.util.LinkedHashSet<>();
         for (double r : roots) uniq.add(num(r));
         StringBuilder sb = new StringBuilder("x=");
         int i = 0, n = uniq.size();
-        for (String s : uniq) { if (i++ > 0) sb.append("\\;\\text{ó}\\;x="); sb.append(s); }
-
+        for (String s : uniq) {
+            if (i++ > 0) sb.append("\\;\\text{o}\\;x=");
+            sb.append(s);
+        }
         rr.resultado = eq;
         rr.latexFinal = sb.toString();
-        rr.pasos.add(new PasoResolucion(sb.toString()));
+        rr.pasos.add(new PasoResolucion("Soluciones", rr.latexFinal));
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
+
     }
+
     private Double newtonRealPrimeraRaiz(Poly p) {
         Poly dp = p.deriv();
         final double EPS = 1e-10;
         final int MAXIT = 50;
-
         double[] seeds = {-5,-3,-2,-1,0,1,2,3,5};
         for (double x0 : seeds) {
             double x = x0;
@@ -183,16 +196,17 @@ public class T7PolynomialResolver implements Resolver {
         return null;
     }
 
-
     private ResultadoResolucion resolverNewtonRaphson(NodoAST eq) {
         java.util.List<Double> roots = com.example.a22100213_proyectointegrador_logarismos.resolucion.numerico.NewtonRaphsonSolver.solveAll(eq);
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(eq)));
-        rr.pasos.add(new PasoResolucion("\\text{Newton–Raphson sobre } F(x)=0"));
+        String tex = AstUtils.toTeX(eq);
+        rr.pasos.add(new PasoResolucion("Expresión inicial", tex));
+        rr.pasos.add(new PasoResolucion("Método", "\\text{Newton–Raphson sobre }F(x)=0"));
         if (roots.isEmpty()) {
-            rr.pasos.add(new PasoResolucion("\\text{Sin raíces reales encontradas}"));
+            rr.pasos.add(new PasoResolucion("Conclusión", "\\text{Sin raíces reales encontradas}"));
             rr.resultado = eq;
             rr.latexFinal = "\\text{Sin solución real}";
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
         StringBuilder sb = new StringBuilder("x=");
@@ -200,12 +214,12 @@ public class T7PolynomialResolver implements Resolver {
             if (i > 0) sb.append("\\;\\text{ó}\\;x=");
             sb.append(num(roots.get(i)));
         }
-        rr.pasos.add(new PasoResolucion(sb.toString()));
+        rr.pasos.add(new PasoResolucion("Soluciones", sb.toString()));
         rr.resultado = eq;
         rr.latexFinal = sb.toString();
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
     }
-
 
     private static class Poly {
         final double[] a;
@@ -215,7 +229,6 @@ public class T7PolynomialResolver implements Resolver {
             while (d > 0 && Math.abs(a[d]) < 1e-12) d--;
             return d;
         }
-
         Poly deriv() {
             int n = deg();
             if (n == 0) return new Poly(new double[]{0});
@@ -223,7 +236,6 @@ public class T7PolynomialResolver implements Resolver {
             for (int k = 1; k <= n; k++) b[k-1] = k * a[k];
             return new Poly(b);
         }
-
         double an() { return a[deg()]; }
         double cte() { return a[0]; }
         double eval(double x) {
@@ -295,7 +307,6 @@ public class T7PolynomialResolver implements Resolver {
             }
             return;
         }
-
         if (t == LexToken.Type.MUL) {
             if (n.hijos.size() == 2) {
                 Double cL = evaluarConstante(n.hijos.get(0));

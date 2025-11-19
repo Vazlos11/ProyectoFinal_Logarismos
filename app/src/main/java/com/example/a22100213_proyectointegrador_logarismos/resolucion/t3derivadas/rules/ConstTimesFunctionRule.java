@@ -28,7 +28,6 @@ public final class ConstTimesFunctionRule implements DerivativeRule {
 
         boolean aConst = AstUtils.isConst(a);
         boolean bConst = AstUtils.isConst(b);
-
         if (aConst == bConst) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
 
         NodoAST c = aConst ? a : b;
@@ -38,36 +37,31 @@ public final class ConstTimesFunctionRule implements DerivativeRule {
         ResultadoSemantico rsub = AnalisisSemantico.analizar(dnode);
         NodoAST uprime = new DerivadasResolver().resolve(dnode, rsub).resultado;
 
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
+        rr.pasos.add(new PasoResolucion("Constante por función", AstUtils.toTeX(f)));
+        rr.pasos.add(new PasoResolucion("Derivar la función interna", AstUtils.toTeX(uprime)));
+
         Double ku = AstUtils.evalConst(uprime);
-        if (ku != null) {
-            if (Math.abs(ku) < 1e-15) {
-                NodoAST res0 = AstUtils.number(0.0);
-                NodoAST nuevo0 = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, res0);
-                rr.resultado = nuevo0; rr.latexFinal = AstUtils.toTeX(nuevo0);
-                rr.pasos.add(new PasoResolucion(rr.latexFinal));
-                return rr;
-            }
-            if (Math.abs(ku - 1.0) < 1e-15) {
-                NodoAST resC = AstUtils.cloneTree(c);
-                NodoAST nuevoC = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, resC);
-                rr.resultado = nuevoC; rr.latexFinal = AstUtils.toTeX(nuevoC);
-                rr.pasos.add(new PasoResolucion(rr.latexFinal));
-                return rr;
-            }
+        if (ku != null && Math.abs(ku) < 1e-15) {
+            NodoAST res0 = AstUtils.number(0.0);
+            NodoAST nuevo0 = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, res0);
+            rr.resultado = nuevo0;
+            rr.latexFinal = AstUtils.toTeX(nuevo0);
+            rr.pasos.add(new PasoResolucion("Multiplicar por la constante", AstUtils.toTeX(res0)));
+            rr.pasos.add(new PasoResolucion("Sustitución en la expresión", rr.latexFinal));
+            return rr;
         }
 
         NodoAST res = AstUtils.bin(LexToken.Type.MUL, AstUtils.cloneTree(c), uprime, "*", 0);
+        Double kv = AstUtils.evalConst(res);
+        if (kv != null) res = AstUtils.number(kv);
 
-        Double kc = AstUtils.evalConst(c);
-        if (kc != null) {
-            Double kv = AstUtils.evalConst(res);
-            if (kv != null) res = AstUtils.number(kv);
-        }
+        rr.pasos.add(new PasoResolucion("Multiplicar por la constante", AstUtils.toTeX(res)));
 
         NodoAST nuevo = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, res);
-        rr.resultado = nuevo; rr.latexFinal = AstUtils.toTeX(nuevo);
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(res)));
-        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        rr.resultado = nuevo;
+        rr.latexFinal = AstUtils.toTeX(nuevo);
+        rr.pasos.add(new PasoResolucion("Sustitución en la expresión", rr.latexFinal));
         return rr;
     }
 }

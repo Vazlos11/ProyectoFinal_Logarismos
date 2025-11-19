@@ -31,7 +31,8 @@ public final class NewtonRaphsonSolver {
             }
         }
         if (roots.isEmpty()) {
-            for (double x0 : new double[]{-100,-50,-20,-10,-5,-3,-2,-1,-0.5,0,0.5,1,2,3,5,10,20,50,100}) {
+            double[] seeds = new double[]{-100,-50,-20,-10,-5,-3,-2,-1,-0.5,0,0.5,1,2,3,5,10,20,50,100};
+            for (double x0 : seeds) {
                 Double r = newtonFree(F, var, x0, tol, maxIt);
                 if (r != null && r >= xmin - 1 && r <= xmax + 1) addDedup(roots, r, dedupTol);
             }
@@ -106,9 +107,9 @@ public final class NewtonRaphsonSolver {
     }
 
     private static double f(NodoAST n, String var, double x) {
-        if (n == null) return Double.NaN;
-        if (n.token == null) return Double.NaN;
+        if (n == null || n.token == null) return Double.NaN;
         LexToken.Type t = n.token.type;
+
         if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) {
             try { return Double.parseDouble(n.token.value); } catch (Exception e) { return Double.NaN; }
         }
@@ -123,6 +124,10 @@ public final class NewtonRaphsonSolver {
         }
         if (t == LexToken.Type.SUB) {
             if (n.hijos.isEmpty()) return Double.NaN;
+            if (n.hijos.size() == 1) {
+                double v = f(n.hijos.get(0), var, x);
+                return Double.isFinite(v) ? -v : Double.NaN;
+            }
             double s = f(n.hijos.get(0), var, x);
             if (!Double.isFinite(s)) return Double.NaN;
             for (int i = 1; i < n.hijos.size(); i++) {
@@ -145,6 +150,7 @@ public final class NewtonRaphsonSolver {
             if (n.hijos.size() != 2) return Double.NaN;
             double a = f(n.hijos.get(0), var, x), b = f(n.hijos.get(1), var, x);
             if (!Double.isFinite(a) || !Double.isFinite(b)) return Double.NaN;
+            if (a == 0.0 && b <= 0.0) return Double.NaN;
             double bi = Math.rint(b);
             if (a < 0 && Math.abs(b - bi) > 1e-10) return Double.NaN;
             return Math.pow(a, b);
@@ -217,7 +223,8 @@ public final class NewtonRaphsonSolver {
         }
         if (t == LexToken.Type.TRIG_ARCCOT) {
             double a = f(n.hijos.get(0), var, x);
-            return Double.isFinite(a) ? Math.atan(1.0 / a) : Double.NaN;
+            if (!Double.isFinite(a)) return Double.NaN;
+            return Math.atan2(1.0, a);
         }
         if (t == LexToken.Type.TRIG_ARCSEC) {
             double a = f(n.hijos.get(0), var, x);
@@ -229,7 +236,10 @@ public final class NewtonRaphsonSolver {
             if (!Double.isFinite(a) || Math.abs(a) < 1) return Double.NaN;
             return Math.asin(1.0 / a);
         }
-        if (t == LexToken.Type.IMAGINARY || t == LexToken.Type.FACTORIAL || t == LexToken.Type.DERIV || t == LexToken.Type.INTEGRAL_DEF || t == LexToken.Type.INTEGRAL_INDEF) return Double.NaN;
+
+        if (t == LexToken.Type.IMAGINARY || t == LexToken.Type.FACTORIAL || t == LexToken.Type.DERIV || t == LexToken.Type.INTEGRAL_DEF || t == LexToken.Type.INTEGRAL_INDEF)
+            return Double.NaN;
+
         double s = 0;
         for (NodoAST h : n.hijos) {
             double v = f(h, var, x);

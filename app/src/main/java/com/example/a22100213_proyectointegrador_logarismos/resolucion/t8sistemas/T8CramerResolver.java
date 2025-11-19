@@ -22,16 +22,23 @@ public final class T8CramerResolver implements Resolver {
     @Override
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(raiz)));
+        rr.pasos.add(new PasoResolucion("Expresión inicial", AstUtils.toTeX(raiz)));
+
         List<NodoAST> eqs = ecuaciones(raiz);
         LinkedHashSet<String> vs = new LinkedHashSet<>(varsNoI(raiz));
         List<String> vars = new ArrayList<>(vs);
         Collections.sort(vars);
         int n = eqs.size();
+
+        rr.pasos.add(new PasoResolucion("Variables detectadas", "\\{" + String.join(",", vars) + "\\}"));
+        rr.pasos.add(new PasoResolucion("Número de ecuaciones", Integer.toString(n)));
+
         if (n < 2 || n > 3 || vars.size() != n) {
-            rr.pasos.add(new PasoResolucion("\\text{Cramer no aplicable}"));
+            String msg = "\\text{Cramer no aplicable}";
+            rr.pasos.add(new PasoResolucion("Clasificación", msg));
             rr.resultado = raiz;
             rr.latexFinal = AstUtils.toTeX(raiz);
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
 
@@ -44,9 +51,11 @@ public final class T8CramerResolver implements Resolver {
             NodoAST F = resta(L, R);
             Decomp d = decompose(F, vars);
             if (!d.ok) {
-                rr.pasos.add(new PasoResolucion("\\text{No lineal o no descomponible}"));
+                String msg = "\\text{No lineal o no descomponible}";
+                rr.pasos.add(new PasoResolucion("Clasificación", msg));
                 rr.resultado = raiz;
                 rr.latexFinal = AstUtils.toTeX(raiz);
+                rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
                 return rr;
             }
             for (int j = 0; j < n; j++) A[i][j] = d.coef.getOrDefault(vars.get(j), 0.0);
@@ -54,7 +63,7 @@ public final class T8CramerResolver implements Resolver {
         }
 
         for (int i = 0; i < n; i++) {
-            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(eqNormalizado(A[i], b[i], vars))));
+            rr.pasos.add(new PasoResolucion("Ecuación normalizada " + (i + 1), AstUtils.toTeX(eqNormalizado(A[i], b[i], vars))));
         }
 
         if (n == 2) {
@@ -63,20 +72,26 @@ public final class T8CramerResolver implements Resolver {
             double D = a1*b2 - a2*b1;
             double Dx = c1*b2 - c2*b1;
             double Dy = a1*c2 - a2*c1;
-            rr.pasos.add(new PasoResolucion("D=(" + num(a1) + ")(" + num(b2) + ")-(" + num(a2) + ")(" + num(b1) + ")=" + num(D)));
-            rr.pasos.add(new PasoResolucion("D_" + vars.get(0) + "=(" + num(c1) + ")(" + num(b2) + ")-(" + num(c2) + ")(" + num(b1) + ")=" + num(Dx)));
-            rr.pasos.add(new PasoResolucion("D_" + vars.get(1) + "=(" + num(a1) + ")(" + num(c2) + ")-(" + num(a2) + ")(" + num(c1) + ")=" + num(Dy)));
+
+            rr.pasos.add(new PasoResolucion("Determinante D", "D=(" + num(a1) + ")(" + num(b2) + ")-(" + num(a2) + ")(" + num(b1) + ")=" + num(D)));
+            rr.pasos.add(new PasoResolucion("Determinante " + vars.get(0), "D_{" + vars.get(0) + "}=(" + num(c1) + ")(" + num(b2) + ")-(" + num(c2) + ")(" + num(b1) + ")=" + num(Dx)));
+            rr.pasos.add(new PasoResolucion("Determinante " + vars.get(1), "D_{" + vars.get(1) + "}=(" + num(a1) + ")(" + num(c2) + ")-(" + num(a2) + ")(" + num(c1) + ")=" + num(Dy)));
+
             if (Math.abs(D) < 1e-12) {
-                rr.pasos.add(new PasoResolucion("\\text{D=0, Cramer no aplica}"));
+                String msg = "\\text{D=0, Cramer no aplica}";
+                rr.pasos.add(new PasoResolucion("Conclusión", msg));
                 rr.resultado = raiz;
-                rr.latexFinal = "\\text{D=0, Cramer no aplica}";
+                rr.latexFinal = msg;
+                rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
                 return rr;
             }
+
             double x = Dx/D, y = Dy/D;
-            rr.pasos.add(new PasoResolucion(vars.get(0) + "=" + num(Dx) + "/" + num(D) + "=" + num(x)));
-            rr.pasos.add(new PasoResolucion(vars.get(1) + "=" + num(Dy) + "/" + num(D) + "=" + num(y)));
+            rr.pasos.add(new PasoResolucion("Despeje " + vars.get(0), vars.get(0) + "=" + num(Dx) + "/" + num(D) + "=" + num(x)));
+            rr.pasos.add(new PasoResolucion("Despeje " + vars.get(1), vars.get(1) + "=" + num(Dy) + "/" + num(D) + "=" + num(y)));
             rr.resultado = raiz;
             rr.latexFinal = vars.get(0) + "=" + num(x) + "\\;," + vars.get(1) + "=" + num(y);
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
 
@@ -89,28 +104,27 @@ public final class T8CramerResolver implements Resolver {
         double Dy = a1*(d2*c3c - d3*c2c) - d1*(a2*c3c - a3*c2c) + c1c*(a2*d3 - a3*d2);
         double Dz = a1*(b2c*d3 - b3c*d2) - b1c*(a2*d3 - a3*d2) + d1*(a2*b3c - a3*b2c);
 
-        rr.pasos.add(new PasoResolucion("D=" + num(a1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + numSign(-c2c) + num(Math.abs(c2c)) + ")-" + num(b1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(c3c) + ")+"
-                + num(c1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(b3c) + ")=" + num(D)));
-        rr.pasos.add(new PasoResolucion("D_" + vars.get(0) + "=" + num(d1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + numSign(-c2c) + num(Math.abs(c2c)) + ")-" + num(b1c) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(c3c) + ")+"
-                + num(c1c) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(b3c) + ")=" + num(Dx)));
-        rr.pasos.add(new PasoResolucion("D_" + vars.get(1) + "=" + num(a1) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(c2c) + ")-" + num(d1) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(c3c) + ")+"
-                + num(c1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(d2) + ")=" + num(Dy)));
-        rr.pasos.add(new PasoResolucion("D_" + vars.get(2) + "=" + num(a1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + num(d3) + ")-" + num(b1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(d2) + ")+"
-                + num(d1) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(b2c) + ")=" + num(Dz)));
+        rr.pasos.add(new PasoResolucion("Determinante D", "D=" + num(a1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + numSign(-c2c) + num(Math.abs(c2c)) + ")-" + num(b1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(c3c) + ")+" + num(c1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(b3c) + ")=" + num(D)));
+        rr.pasos.add(new PasoResolucion("Determinante " + vars.get(0), "D_{" + vars.get(0) + "}=" + num(d1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + numSign(-c2c) + num(Math.abs(c2c)) + ")-" + num(b1c) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(c3c) + ")+" + num(c1c) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(b3c) + ")=" + num(Dx)));
+        rr.pasos.add(new PasoResolucion("Determinante " + vars.get(1), "D_{" + vars.get(1) + "}=" + num(a1) + "(" + num(d2) + numSign(-d3) + num(Math.abs(d3)) + num(c2c) + ")-" + num(d1) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(c3c) + ")+" + num(c1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(d2) + ")=" + num(Dy)));
+        rr.pasos.add(new PasoResolucion("Determinante " + vars.get(2), "D_{" + vars.get(2) + "}=" + num(a1) + "(" + num(b2c) + numSign(-b3c) + num(Math.abs(b3c)) + num(d3) + ")-" + num(b1c) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(d2) + ")+" + num(d1) + "(" + num(a2) + numSign(-a3) + num(Math.abs(a3)) + num(b2c) + ")=" + num(Dz)));
 
         if (Math.abs(D) < 1e-12) {
-            rr.pasos.add(new PasoResolucion("\\text{D=0, Cramer no aplica}"));
+            String msg = "\\text{D=0, Cramer no aplica}";
+            rr.pasos.add(new PasoResolucion("Conclusión", msg));
             rr.resultado = raiz;
-            rr.latexFinal = "\\text{D=0, Cramer no aplica}";
+            rr.latexFinal = msg;
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
 
         double x = Dx/D, y = Dy/D, z = Dz/D;
-        rr.pasos.add(new PasoResolucion(vars.get(0) + "=" + num(Dx) + "/" + num(D) + "=" + num(x)));
-        rr.pasos.add(new PasoResolucion(vars.get(1) + "=" + num(Dy) + "/" + num(D) + "=" + num(y)));
-        rr.pasos.add(new PasoResolucion(vars.get(2) + "=" + num(Dz) + "/" + num(D) + "=" + num(z)));
+        rr.pasos.add(new PasoResolucion("Despeje " + vars.get(0), vars.get(0) + "=" + num(Dx) + "/" + num(D) + "=" + num(x)));
+        rr.pasos.add(new PasoResolucion("Despeje " + vars.get(1), vars.get(1) + "=" + num(Dy) + "/" + num(D) + "=" + num(y)));
+        rr.pasos.add(new PasoResolucion("Despeje " + vars.get(2), vars.get(2) + "=" + num(Dz) + "/" + num(D) + "=" + num(z)));
         rr.resultado = raiz;
         rr.latexFinal = vars.get(0) + "=" + num(x) + "\\;," + vars.get(1) + "=" + num(y) + "\\;," + vars.get(2) + "=" + num(z);
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
     }
 

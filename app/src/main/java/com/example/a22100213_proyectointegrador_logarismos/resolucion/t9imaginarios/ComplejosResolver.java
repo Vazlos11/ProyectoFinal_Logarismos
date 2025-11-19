@@ -10,7 +10,6 @@ import com.example.a22100213_proyectointegrador_logarismos.resolucion.Resolver;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
 
 public class ComplejosResolver implements Resolver {
-
     private static final double EPS = 1e-12;
 
     private static final class C {
@@ -48,25 +47,28 @@ public class ComplejosResolver implements Resolver {
     @Override
     public ResultadoResolucion resolve(NodoAST raiz, ResultadoSemantico rs) {
         ResultadoResolucion rr = new ResultadoResolucion();
-        String before = AstUtils.toTeX(raiz);
+        String texIn = AstUtils.toTeX(raiz);
+        rr.pasos.add(new PasoResolucion("Expresión inicial", texIn));
         C v = evalC(raiz);
         if (v == null) {
+            rr.pasos.add(new PasoResolucion("Evaluación compleja", "\\text{No evaluable en T9}"));
             rr.resultado = raiz;
-            rr.latexFinal = before;
-            rr.pasos.add(new PasoResolucion("\\text{Sin cambio (T9)}\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+            rr.latexFinal = texIn;
+            rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
             return rr;
         }
         NodoAST result = buildAplusBi(v.re, v.im);
+        String texOut = AstUtils.toTeX(result);
+        rr.pasos.add(new PasoResolucion("Forma a+bi", texOut));
         rr.resultado = result;
-        rr.latexFinal = AstUtils.toTeX(result);
-        rr.pasos.add(new PasoResolucion("\\text{Forma }a+bi\\; " + before + "\\;\\Rightarrow\\; " + rr.latexFinal));
+        rr.latexFinal = texOut;
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
     }
 
     private static C evalC(NodoAST n){
         if (n==null || n.token==null) return null;
         LexToken.Type t = n.token.type;
-
         if (t == LexToken.Type.INTEGER || t == LexToken.Type.DECIMAL) {
             try { return new C(Double.parseDouble(n.token.value), 0); } catch(Exception e){ return null; }
         }
@@ -83,7 +85,6 @@ public class ComplejosResolver implements Resolver {
             return null;
         }
         if (t == LexToken.Type.VARIABLE) return null;
-
         if (t == LexToken.Type.SUM || t == LexToken.Type.SUB || t == LexToken.Type.MUL || t == LexToken.Type.DIV) {
             C a = evalC(n.hijos.get(0));
             C b = evalC(n.hijos.get(1));
@@ -93,7 +94,6 @@ public class ComplejosResolver implements Resolver {
             if (t == LexToken.Type.MUL) return C.mul(a,b);
             return C.div(a,b);
         }
-
         if (t == LexToken.Type.EXP) {
             C a = evalC(n.hijos.get(0));
             if (a==null) return null;
@@ -103,23 +103,17 @@ public class ComplejosResolver implements Resolver {
             if (Math.abs(k - ki) > EPS) return null;
             return C.powInt(a, ki);
         }
-
         return null;
     }
 
     private static NodoAST buildAplusBi(double re, double im){
         boolean zr = Math.abs(re) < EPS;
         boolean zi = Math.abs(im) < EPS;
-
         if (zr && zi) return AstUtils.number(0);
         if (zr) return imagNode(im);
         if (zi) return AstUtils.number(re);
-
-        if (im >= 0) {
-            return AstUtils.bin(LexToken.Type.SUM, AstUtils.number(re), imagNode(im), "+", 5);
-        } else {
-            return AstUtils.bin(LexToken.Type.SUB, AstUtils.number(re), imagNode(-im), "-", 5);
-        }
+        if (im >= 0) return AstUtils.bin(LexToken.Type.SUM, AstUtils.number(re), imagNode(im), "+", 5);
+        return AstUtils.bin(LexToken.Type.SUB, AstUtils.number(re), imagNode(-im), "-", 5);
     }
 
     private static NodoAST imagNode(double b){

@@ -950,6 +950,22 @@ public final class IntegralUtils {
         for (NodoAST h : n.hijos) if (containsVar(h, var)) return true;
         return false;
     }
+    public static int degMonomio(NodoAST n, String v) {
+        Poly p = esMonomioEn(n, v);
+        if (p != null) return p.grado;
+        if (n != null && n.token != null && n.token.type == LexToken.Type.MUL && n.hijos.size() == 2) {
+            NodoAST a = n.hijos.get(0), b = n.hijos.get(1);
+            if (a != null && a.token != null && a.token.type == LexToken.Type.LN) {
+                Poly q = esMonomioEn(b, v);
+                return q != null ? q.grado : 0;
+            }
+            if (b != null && b.token != null && b.token.type == LexToken.Type.LN) {
+                Poly q = esMonomioEn(a, v);
+                return q != null ? q.grado : 0;
+            }
+        }
+        return 0;
+    }
 
     public static boolean equalsSymja(NodoAST a, NodoAST b) {
         String sa = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toSymja(a);

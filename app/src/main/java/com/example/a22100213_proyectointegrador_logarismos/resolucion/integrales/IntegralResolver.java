@@ -5,6 +5,7 @@ import com.example.a22100213_proyectointegrador_logarismos.Semantico.MetodoResol
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.Resolver;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.integrales.rules.ByPartsExpPolyIntegrator;
@@ -37,8 +38,8 @@ public final class IntegralResolver implements Resolver {
             out.pasos = new java.util.ArrayList<>();
             out.resultado = raiz;
             out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
-            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Sin método asignado"));
-            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+            out.pasos.add(new PasoResolucion("Sin método asignado", ""));
+            out.pasos.add(new PasoResolucion("", out.latexFinal));
             return out;
         }
 
@@ -58,8 +59,9 @@ public final class IntegralResolver implements Resolver {
             out.pasos = new java.util.ArrayList<>();
             out.resultado = raiz;
             out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
-            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Método no aplicable"));
-            out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+            new PasoResolucion("Método no aplicable", "");
+            new PasoResolucion("", out.latexFinal);
+
             return out;
         }
 
@@ -74,8 +76,9 @@ public final class IntegralResolver implements Resolver {
         out.pasos = new java.util.ArrayList<>();
         out.resultado = raiz;
         out.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
-        out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Método no aplicable"));
-        out.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(out.latexFinal));
+        new PasoResolucion("Método no aplicable", "");
+        new PasoResolucion("", out.latexFinal);
+
         return out;
     }
 

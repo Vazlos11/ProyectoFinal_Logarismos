@@ -9,16 +9,19 @@ import com.example.a22100213_proyectointegrador_logarismos.resolucion.t3derivada
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 
 public final class ConstantRule implements DerivativeRule {
-    @Override public ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs) {
+    @Override
+    public ResultadoResolucion apply(NodoAST raiz, ResultadoSemantico rs) {
         DerivativeUtils.DerivInfo di = DerivativeUtils.localizarDerivada(raiz);
         ResultadoResolucion rr = new ResultadoResolucion();
         if (di == null || di.fun == null) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
         if (!DerivativeUtils.esConstantePura(di.fun)) { rr.resultado = raiz; rr.latexFinal = AstUtils.toTeX(raiz); return rr; }
         NodoAST d = AstUtils.number(0.0);
         NodoAST nuevo = IntegralUtils.reemplazarSubexp(raiz, di.nodoDeriv, d);
-        rr.resultado = nuevo; rr.latexFinal = AstUtils.toTeX(nuevo);
-        rr.pasos.add(new PasoResolucion("0"));
-        rr.pasos.add(new PasoResolucion(rr.latexFinal));
+        rr.resultado = nuevo;
+        rr.latexFinal = AstUtils.toTeX(nuevo);
+        if (rr.pasos == null) rr.pasos = new java.util.ArrayList<>();
+        rr.pasos.add(new PasoResolucion("Regla de la constante", AstUtils.toTeX(d)));
+        rr.pasos.add(new PasoResolucion("Sustitución en la expresión", rr.latexFinal));
         return rr;
     }
 }

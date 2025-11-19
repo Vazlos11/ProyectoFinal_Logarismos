@@ -5,6 +5,8 @@ import com.example.a22100213_proyectointegrador_logarismos.Semantico.MetodoResol
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.PlanificadorResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.ResultadoSemantico;
 import com.example.a22100213_proyectointegrador_logarismos.Semantico.TipoExpresion;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.Resolver;
 import com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion;
 import java.util.EnumSet;
@@ -17,6 +19,7 @@ public final class T7NoLinealResolver implements Resolver {
             MetodoResolucion.ECUACION_POLINOMICA,
             MetodoResolucion.NEWTON_RAPHSON
     );
+
     private static final Set<MetodoResolucion> ESPECIALES = EnumSet.of(
             MetodoResolucion.ECUACION_EXPONENCIAL,
             MetodoResolucion.ECUACION_LOGARITMICA,
@@ -43,9 +46,12 @@ public final class T7NoLinealResolver implements Resolver {
         if (POLI.contains(m)) return new T7PolynomialResolver().resolve(raiz, rs);
         if (ESPECIALES.contains(m)) return NoLinealEspecialResolver.resolve(raiz, rs, m);
         ResultadoResolucion rr = new ResultadoResolucion();
+        String tex = AstUtils.toTeX(raiz);
+        rr.pasos.add(new PasoResolucion("Expresión inicial", tex));
+        rr.pasos.add(new PasoResolucion("Planificador — método no soportado aquí", "\\text{" + m + "}"));
         rr.resultado = raiz;
-        rr.latexFinal = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(raiz);
-        rr.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion(rr.latexFinal));
+        rr.latexFinal = tex;
+        rr.pasos.add(new PasoResolucion("Resultado", rr.latexFinal));
         return rr;
     }
 }

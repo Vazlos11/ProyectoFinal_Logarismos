@@ -5,35 +5,39 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.a22100213_proyectointegrador_logarismos.R;
+import com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion;
 import com.judemanutd.katexview.KatexView;
 
 import java.util.List;
 
 public class PasosAdapter extends RecyclerView.Adapter<PasosAdapter.VH> {
-    private final List<String> data;
+    private final List<PasoResolucion> data;
 
-    public PasosAdapter(List<String> data) {
+    public PasosAdapter(List<PasoResolucion> data) {
         this.data = data;
-        setHasStableIds(true);
     }
 
-    @NonNull
     @Override
-    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public VH onCreateViewHolder(ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_paso, parent, false);
         return new VH(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull VH h, int position) {
-        h.tvIdx.setText("Paso " + (position + 1));
-
-        String tex = data.get(position);
-        h.kvPaso.setText(tex);
+    public void onBindViewHolder(VH h, int position) {
+        PasoResolucion p = data.get(position);
+        String d = p.descripcion == null ? "" : p.descripcion.trim();
+        if (d.isEmpty()) {
+            h.tvDesc.setVisibility(View.GONE);
+        } else {
+            h.tvDesc.setVisibility(View.VISIBLE);
+            h.tvDesc.setText(d);
+        }
+        h.kvPaso.setText(p.latex == null ? "" : p.latex);
     }
 
     @Override
@@ -41,18 +45,15 @@ public class PasosAdapter extends RecyclerView.Adapter<PasosAdapter.VH> {
         return data == null ? 0 : data.size();
     }
 
-    @Override
-    public long getItemId(int position) {
-        return position;
-    }
-
     static class VH extends RecyclerView.ViewHolder {
-        TextView tvIdx;
+        CardView card;
+        TextView tvDesc;
         KatexView kvPaso;
-        VH(@NonNull View itemView) {
-            super(itemView);
-            tvIdx = itemView.findViewById(R.id.tv_idx);
-            kvPaso = itemView.findViewById(R.id.kv_paso);
+        VH(View v) {
+            super(v);
+            card = v.findViewById(R.id.card_step);
+            tvDesc = v.findViewById(R.id.tv_desc);
+            kvPaso = v.findViewById(R.id.kv_paso);
         }
     }
 }

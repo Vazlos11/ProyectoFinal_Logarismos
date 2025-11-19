@@ -46,7 +46,7 @@
                 android:layout_height="wrap_content"
                 android:fillViewport="true"
                 android:overScrollMode="never"
-                android:scrollbars="none"
+                android:scrollbars="horizontal"
                 android:layout_marginTop="8dp">
 
                 <com.judemanutd.katexview.KatexView
@@ -117,7 +117,15 @@
             android:text="GUARDAR"
             android:textAllCaps="true"
             android:background="@drawable/tecselec"
-            android:layout_marginBottom="20dp"/>
+            android:layout_marginBottom="15dp"/>
+
+        <android.widget.Button
+        android:id="@+id/btn_clear_expr"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Limpiar"
+        android:background="@drawable/tecselec"
+        android:layout_marginBottom="10dp"/>
 
         <!-- Tabs de teclado -->
         <LinearLayout

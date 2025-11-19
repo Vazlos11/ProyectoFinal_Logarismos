@@ -53,7 +53,7 @@ public class MotorResolucion {
         NodoAST actual = raiz;
         ResultadoSemantico cur = rs != null && rs.tipoPrincipal != null ? rs : AnalisisSemantico.analizar(actual);
         if (rs == null || rs.tipoPrincipal == null) {
-            rrMaster.pasos.add(new PasoResolucion("Sin análisis semántico"));
+            rrMaster.pasos.add(new PasoResolucion("Sin análisis semántico", ""));
         }
         LinkedHashSet<String> vistos = new LinkedHashSet<>();
         int maxIter = 6;
@@ -98,7 +98,7 @@ public class MotorResolucion {
                     default:
                         parcial = new ResultadoResolucion();
                         parcial.pasos = new LinkedList<>();
-                        parcial.pasos.add(new PasoResolucion("Expresión sin método de resolución implementado"));
+                        parcial.pasos.add(new PasoResolucion("Expresión sin método de resolución implementado", ""));
                         parcial.latexFinal = AstUtils.toTeX(actual);
                         parcial.resultado = actual;
                         break;
@@ -118,21 +118,34 @@ public class MotorResolucion {
                 cur = next;
                 break;
             }
-            rrMaster.pasos.add(new PasoResolucion("Replanificación - " + PlanificadorResolucion.metodo(actual, next).name()));
+            rrMaster.pasos.add(new PasoResolucion("Replanificación — " + PlanificadorResolucion.metodo(actual, next).name(), ""));
             cur = next;
         }
+
         rrMaster.resultado = actual;
-        if (rrMaster.latexFinal == null) rrMaster.latexFinal = AstUtils.toTeX(actual);
+
+        if (rrMaster.latexFinal == null || rrMaster.latexFinal.trim().isEmpty()) {
+            rrMaster.latexFinal = AstUtils.toTeX(actual);
+        }
+
         NodoAST fmt = ExpressionFormatter.format(rrMaster.resultado);
         String texBeforeFmt = AstUtils.toTeX(rrMaster.resultado);
         String texAfterFmt = AstUtils.toTeX(fmt);
+
         if (!texAfterFmt.equals(texBeforeFmt)) {
-            rrMaster.pasos.add(new PasoResolucion("\\text{Formateo final}\\; " + texBeforeFmt + "\\;\\Rightarrow\\; " + texAfterFmt));
-            rrMaster.resultado = fmt;
+            rrMaster.pasos.add(new PasoResolucion("Formateo final", "\\text{Formateo final}\\; " + texBeforeFmt + "\\;\\Rightarrow\\; " + texAfterFmt));
+        }
+
+        rrMaster.resultado = fmt;
+
+        if (rrMaster.latexFinal == null || rrMaster.latexFinal.trim().isEmpty() || rrMaster.latexFinal.trim().equals(texBeforeFmt.trim())) {
             rrMaster.latexFinal = texAfterFmt;
         }
+
+        cerrarFinal(rrMaster, raiz);
         return rrMaster;
     }
+
 
     private static boolean permitida(TipoExpresion de, TipoExpresion a) {
         if (de == a) return true;
@@ -141,6 +154,16 @@ public class MotorResolucion {
         if (de == TipoExpresion.T8_SISTEMA_EC && (a == TipoExpresion.T1_ARITMETICA || a == TipoExpresion.T9_IMAGINARIOS)) return true;
         if (de == TipoExpresion.T9_IMAGINARIOS && a == TipoExpresion.T1_ARITMETICA) return true;
         return false;
+    }
+
+    private static void cerrarFinal(com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr, com.example.a22100213_proyectointegrador_logarismos.NodoAST arbol) {
+        String tex = rr.latexFinal;
+        if (tex == null || tex.trim().isEmpty()) {
+            com.example.a22100213_proyectointegrador_logarismos.NodoAST out = rr.resultado != null ? rr.resultado : arbol;
+            tex = com.example.a22100213_proyectointegrador_logarismos.resolucion.AstUtils.toTeX(out);
+            rr.latexFinal = tex;
+        }
+        rr.pasos.add(new com.example.a22100213_proyectointegrador_logarismos.resolucion.PasoResolucion("Resultado final", rr.latexFinal));
     }
 
     public static ResultadoResolucion resolver(NodoAST raiz, ResultadoSemantico rs) {

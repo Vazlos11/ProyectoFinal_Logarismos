@@ -27,30 +27,37 @@ public final class SustitucionSimbolicaRule implements T6Rule {
         int ocurr = countVarOccurrences(raiz, varName);
         if (ocurr < 2) return false;
         varSample = firstVarNode(raiz, varName);
-        return isLinearInVar(raiz, varName);
+        NodoAST L = left(raiz), R = right(raiz);
+        return isLinearInVar(L, varName) && isLinearInVar(R, varName);
     }
 
     @Override
     public ResultadoResolucion solve(NodoAST raiz, ResultadoSemantico rs) {
         NodoAST L = left(raiz), R = right(raiz);
         NodoAST L1 = expand(L), R1 = expand(R);
+
         ResultadoResolucion rr = new ResultadoResolucion();
         rr.pasos = new LinkedList<>();
-        rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L) + " = " + AstUtils.toTeX(R)));
-        if (!sameTree(L, L1) || !sameTree(R, R1)) rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L1) + " = " + AstUtils.toTeX(R1)));
+        rr.pasos.add(new PasoResolucion("Ecuación inicial", texEq(L, R)));
+
+        if (!sameTree(L, L1) || !sameTree(R, R1)) {
+            rr.pasos.add(new PasoResolucion("Expandir términos", texEq(L1, R1)));
+        }
 
         double M = denominatorsProduct(L1) * denominatorsProduct(R1);
         if (M != 0 && Math.abs(M - 1.0) > 1e-12) {
             NodoAST ML = mul(num(M), L1);
             NodoAST MR = mul(num(M), R1);
-            rr.pasos.add(new PasoResolucion(AstUtils.toTeX(ML) + " = " + AstUtils.toTeX(MR)));
             L1 = simplifyNumeric(ML);
             R1 = simplifyNumeric(MR);
+            rr.pasos.add(new PasoResolucion("Eliminar denominadores", texEq(L1, R1)));
         }
 
         NodoAST L2 = simplifyNumeric(L1);
         NodoAST R2 = simplifyNumeric(R1);
-        if (!sameTree(L1, L2) || !sameTree(R1, R2)) rr.pasos.add(new PasoResolucion(AstUtils.toTeX(L2) + " = " + AstUtils.toTeX(R2)));
+        if (!sameTree(L1, L2) || !sameTree(R1, R2)) {
+            rr.pasos.add(new PasoResolucion("Simplificación numérica", texEq(L2, R2)));
+        }
 
         Linear lL = linearize(L2, varName);
         Linear lR = linearize(R2, varName);
@@ -58,32 +65,32 @@ public final class SustitucionSimbolicaRule implements T6Rule {
         double c = lR.b - lL.b;
 
         String texVar = AstUtils.toTeX(varSample != null ? varSample : makeVar(varName));
-        String texPaso = coefTex(a) + texVar + " = " + coefTex(c);
-        rr.pasos.add(new PasoResolucion(texPaso));
+        String pasoAxC = coefTex(a) + texVar + " = " + coefTex(c);
+        rr.pasos.add(new PasoResolucion("Agrupar coeficientes de la variable", pasoAxC));
 
         if (Math.abs(a) < 1e-12) {
             if (Math.abs(c) < 1e-12) {
-                rr.pasos.add(new PasoResolucion("\\text{Infinitas soluciones}"));
+                rr.pasos.add(new PasoResolucion("Identidad", "\\text{Infinitas soluciones}"));
                 rr.latexFinal = "\\text{Infinitas soluciones}";
             } else {
-                rr.pasos.add(new PasoResolucion("\\text{Sin solución}"));
+                rr.pasos.add(new PasoResolucion("Inconsistencia", "\\text{Sin solución}"));
                 rr.latexFinal = "\\text{Sin solución}";
             }
+            rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), L2, R2);
             return rr;
         }
 
-        String rhs = "\\frac{" + coefTex(c) + "}{" + coefTex(a) + "}";
-        rr.pasos.add(new PasoResolucion(texVar + " = " + rhs));
-        rr.latexFinal = texVar + " = " + rhs;
+        NodoAST solNode = div(num(c), num(a));
+        String texSol = AstUtils.toTeX(solNode);
+        rr.pasos.add(new PasoResolucion("Dividir entre el coeficiente", texVar + " = " + "\\frac{" + coefTex(c) + "}{" + coefTex(a) + "}"));
+        rr.latexFinal = texVar + " = " + texSol;
+        rr.resultado = node(new LexToken(LexToken.Type.EQUAL, "=", prio(LexToken.Type.EQUAL)), makeVar(varName), solNode);
         return rr;
     }
 
     private boolean isEq(NodoAST n) { return isOp(n, LexToken.Type.EQUAL); }
-
     private boolean isOp(NodoAST n, LexToken.Type t) { return n != null && n.token != null && n.token.type == t; }
-
     private NodoAST left(NodoAST n) { return (n != null && n.hijos != null && n.hijos.size() > 0) ? n.hijos.get(0) : null; }
-
     private NodoAST right(NodoAST n) { return (n != null && n.hijos != null && n.hijos.size() > 1) ? n.hijos.get(1) : null; }
 
     private void countVars(NodoAST n, Set<String> vars) {
@@ -175,7 +182,7 @@ public final class SustitucionSimbolicaRule implements T6Rule {
             case EXP:
                 NodoAST a = simplifyNumeric(left(n));
                 NodoAST b = simplifyNumeric(right(n));
-                if (isNumeric(a) && isNumeric(b)) return num(evalNumeric(makeOp(a, b, n.token.type)));
+                if (isNumeric(a) && isNumeric(b)) return num(evalNumeric(node(new LexToken(n.token.type, n.token.value, n.token.prioridad), a, b)));
                 return node(n.token, a, b);
             default: return n;
         }
@@ -263,9 +270,9 @@ public final class SustitucionSimbolicaRule implements T6Rule {
             case DIV: {
                 NodoAST A = left(n), B = right(n);
                 if (!isNumeric(B)) return new Linear(false, 0, 0);
+                double k = evalNumeric(B);
                 Linear L = linearize(A, v);
                 if (!L.ok) return new Linear(false, 0, 0);
-                double k = evalNumeric(B);
                 return new Linear(true, L.a / k, L.b / k);
             }
             case EXP:
@@ -330,8 +337,9 @@ public final class SustitucionSimbolicaRule implements T6Rule {
     }
 
     private NodoAST mul(NodoAST a, NodoAST b) { return node(new LexToken(LexToken.Type.MUL, "*", prio(LexToken.Type.MUL)), a, b); }
-
+    private NodoAST div(NodoAST a, NodoAST b) { return node(new LexToken(LexToken.Type.DIV, "/", prio(LexToken.Type.DIV)), a, b); }
     private NodoAST makeVar(String name) { return new NodoAST(new LexToken(LexToken.Type.VARIABLE, name, prio(LexToken.Type.VARIABLE))); }
+    private String texEq(NodoAST a, NodoAST b) { return AstUtils.toTeX(a) + " = " + AstUtils.toTeX(b); }
 
     private static final class Linear {
         final boolean ok; final double a; final double b;
