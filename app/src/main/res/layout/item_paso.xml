@@ -22,19 +22,23 @@
             android:textSize="14sp"
             android:layout_marginBottom="6dp" />
 
-        <HorizontalScrollView
+        <!-- Contenedor horizontal igual que en item_saved_expression -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="horizontal">
+            android:orientation="horizontal">
+
             <com.judemanutd.katexview.KatexView
                 android:id="@+id/kv_paso"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp"
-                app:textColor="@android:color/black" />
-        </HorizontalScrollView>
+                android:scrollbars="horizontal"
+                android:scrollbarStyle="insideOverlay"
+                app:textColor="@color/black" />
+        </LinearLayout>
+
     </LinearLayout>
 </androidx.cardview.widget.CardView>

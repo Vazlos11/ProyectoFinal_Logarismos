@@ -37,7 +37,13 @@ public class PasosAdapter extends RecyclerView.Adapter<PasosAdapter.VH> {
             h.tvDesc.setVisibility(View.VISIBLE);
             h.tvDesc.setText(d);
         }
-        h.kvPaso.setText(p.latex == null ? "" : p.latex);
+
+        String rawLatex = p.latex == null ? "" : p.latex;
+        rawLatex = rawLatex.replace("$$", "").replace("\\[", "").replace("\\]", "");
+
+        String singleLineLatex = "$$ \\begin{array}{l} \\displaystyle " + rawLatex + " \\end{array} $$";
+
+        h.kvPaso.setText(singleLineLatex);
     }
 
     @Override

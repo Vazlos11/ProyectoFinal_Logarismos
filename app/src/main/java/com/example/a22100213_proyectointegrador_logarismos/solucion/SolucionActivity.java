@@ -113,7 +113,7 @@ public class SolucionActivity extends AppCompatActivity {
     }
 
     private String toDisplayMath(String s) {
-        if (s == null) return "$$\\displaystyle \\;$$";
+        if (s == null) return "$$ \\begin{array}{l} \\displaystyle \\; \\end{array} $$";
         String t = s.trim();
         t = stripDelimiters(t);
         t = t.replaceFirst("^\\\\Large\\s*", "")
@@ -121,14 +121,15 @@ public class SolucionActivity extends AppCompatActivity {
                 .replaceFirst("^\\\\displaystyle\\s*", "");
         t = t.replace("\r", " ").replace("\n", " ").replaceAll("\\s{2,}", " ").trim();
         t = t.replaceAll(",\\s*(d[x|y])", "\\\\, $1");
-        return "$$\\displaystyle " + t + " $$";
+
+        return "$$ \\begin{array}{l} \\displaystyle " + t + " \\end{array} $$";
     }
 
     private String stripDelimiters(String s) {
         String t = s == null ? "" : s.trim();
-        if (t.startsWith("$$") && t.endsWith("$$") && t.length() >= 4) t = t.substring(2, t.length() - 2).trim();
-        if (t.startsWith("\\[") && t.endsWith("\\]") && t.length() >= 4) t = t.substring(2, t.length() - 2).trim();
-        if (t.startsWith("\\(") && t.endsWith("\\)") && t.length() >= 4) t = t.substring(2, t.length() - 2).trim();
+        if (t.startsWith("$$") && t.endsWith("$$") && t.length() >= 4) t = t.substring(2, t.length() - 2);
+        else if (t.startsWith("$") && t.endsWith("$") && t.length() >= 2) t = t.substring(1, t.length() - 1);
+        else if (t.startsWith("\\[") && t.endsWith("\\]") && t.length() >= 4) t = t.substring(2, t.length() - 2);
         return t;
     }
 }

@@ -24,38 +24,22 @@
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
-            <HorizontalScrollView
-                android:id="@+id/hs_katex_text"
+            <com.judemanutd.katexview.KatexView
+                android:id="@+id/katex_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fillViewport="true"
-                android:overScrollMode="never"
-                android:scrollbars="none">
-
-                <com.judemanutd.katexview.KatexView
-                    android:id="@+id/katex_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
-            </HorizontalScrollView>
-
-            <HorizontalScrollView
-                android:id="@+id/hs_katex_answer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fillViewport="true"
-                android:overScrollMode="never"
+                android:padding="10dp"
                 android:scrollbars="horizontal"
-                android:layout_marginTop="8dp">
+                android:scrollbarStyle="insideOverlay"
+                app:textColor="@android:color/black" />
 
-                <com.judemanutd.katexview.KatexView
-                    android:id="@+id/katex_answer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
-            </HorizontalScrollView>
+            <com.judemanutd.katexview.KatexView
+                android:id="@+id/katex_answer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:scrollbars="horizontal"
+                android:scrollbarStyle="insideOverlay" />
 
             <TextView
                 android:id="@+id/test"

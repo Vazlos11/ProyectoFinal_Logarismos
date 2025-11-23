@@ -20,13 +20,14 @@ import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
     private Button btnViewSolution;
-    private HorizontalScrollView hsInput, hsAnswer;
     private Button btnClearExpr;
 
 
     private ArrayList<String> lastStepsLatex = new ArrayList<>();
     private String lastExprLatex = "";
     private ArrayList<String> lastStepsDesc = new ArrayList<>();
+    private String lastRenderedInputLatex = "";
+    private String lastRenderedAnswerLatex = "";
 
     private boolean lastGraphable = false;
     TextView test;
@@ -180,8 +181,7 @@ public class MainActivity extends AppCompatActivity {
         keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
 
         answer = findViewById(R.id.katex_answer);
-        hsInput = findViewById(R.id.hs_katex_text);
-        hsAnswer = findViewById(R.id.hs_katex_answer);
+
         cursorIndex = 0;
         keyboardsFlipp = findViewById(R.id.keyboardsFlipp);
 
@@ -189,14 +189,6 @@ public class MainActivity extends AppCompatActivity {
             answer.setHorizontalScrollBarEnabled(false);
             answer.setVerticalScrollBarEnabled(false);
         } catch (Throwable ignored) {}
-
-        if (hsAnswer != null) {
-            hsAnswer.setSmoothScrollingEnabled(true);
-            hsAnswer.setOnTouchListener((v, ev) -> {
-                v.getParent().requestDisallowInterceptTouchEvent(true);
-                return false;
-            });
-        }
 
         btnClearExpr = findViewById(R.id.btn_clear_expr);
         if (btnClearExpr != null) {
@@ -223,25 +215,23 @@ public class MainActivity extends AppCompatActivity {
         rootTokens.clear();
         currentContainer = null;
         cursorIndex = 0;
+        lastRenderedInputLatex = "";
         updateView();
 
-        if (answer != null) answer.setText("");
+        setAnswerLatex("");
         if (test != null) test.setText("");
 
         lastExprLatex = "";
+        lastRenderedAnswerLatex = "";
         lastStepsLatex.clear();
         lastStepsDesc.clear();
         lastGraphable = false;
         lastGrafModo = "";
         lastGrafVarX = "x";
         lastMetodo = "";
-        hasResultShown = false;
 
         if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
 
-        if (hsInput != null) {
-            hsInput.post(() -> hsInput.fullScroll(View.FOCUS_LEFT));
-        }
         resetAnswerScroll();
     }
 
@@ -252,11 +242,14 @@ public class MainActivity extends AppCompatActivity {
                 symbol.equals("[]") ||
                 symbol.equals("\\{ \\}");
     }
-
     private void updateView() {
+        if (katexView == null) return;
         StringBuilder sb = new StringBuilder();
         appendListWithCursor(sb, rootTokens);
-        katexView.setText("$$\\Large " + sb + "$$");
+        String tex = wrapLatex(sb.toString());
+        if (tex.equals(lastRenderedInputLatex)) return;
+        lastRenderedInputLatex = tex;
+        katexView.setText(tex);
     }
 
     private void appendListWithCursor(StringBuilder sb, List<Token> list) {
@@ -1296,9 +1289,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String wrapLatex(String tex) {
-        if (isBlank(tex)) return "";
-        String t = tex.trim();
-        return t.startsWith("$$") ? t : "$$\\Large \\displaystyle " + t + " $$";
+        if (tex == null || tex.trim().isEmpty()) return "";
+
+        String t = tex.trim()
+                .replace("\r", " ")
+                .replace("\n", " ")
+                .replaceAll("\\s+", " ");
+
+        if (t.startsWith("$$") && t.endsWith("$$")) {
+            t = t.substring(2, t.length() - 2);
+        }
+
+        return "$$ \\begin{array}{l} \\Large \\displaystyle " + t + " \\end{array} $$";
     }
 
     private String computeFinalLatex(com.example.a22100213_proyectointegrador_logarismos.resolucion.ResultadoResolucion rr,
@@ -1455,15 +1457,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateViewAfterMove(int delta) {
         updateView();
-        if (hsInput != null) {
-            hsInput.post(() -> hsInput.fullScroll(delta > 0 ? View.FOCUS_RIGHT : View.FOCUS_LEFT));
-        }
     }
 
     private void resetAnswerScroll() {
-        if (hsAnswer != null) {
-            hsAnswer.post(() -> hsAnswer.fullScroll(View.FOCUS_LEFT));
-        }
+
     }
 
     private void insertFunctionSequence(boolean withX) {
@@ -1518,7 +1515,7 @@ public class MainActivity extends AppCompatActivity {
             if (rs != null && rs.errores != null && !rs.errores.isEmpty()) {
                 String msg = formatErrores(rs.errores);
                 test.setText(msg);
-                answer.setText("");
+                setAnswerLatex("");
                 hasResultShown = false;
                 if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
                 return;
@@ -1532,7 +1529,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (rr != null) {
                 String finalTex = wrapLatex(computeFinalLatex(rr, arbol));
-                answer.setText(finalTex);
+                setAnswerLatex(finalTex);
                 resetAnswerScroll();
                 hasResultShown = finalTex.trim().length() > 0;
 
@@ -1568,7 +1565,7 @@ public class MainActivity extends AppCompatActivity {
 
                 test.setText("");
             } else {
-                answer.setText("");
+                setAnswerLatex("");
                 hasResultShown = false;
                 if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
                 test.setText("");
@@ -1577,17 +1574,17 @@ public class MainActivity extends AppCompatActivity {
         } catch (RuntimeException ex) {
             String m = humanizeSyntaxMessage(ex.getMessage());
             test.setText("Error de sintaxis: " + m);
-            answer.setText("");
+            setAnswerLatex("");
             hasResultShown = false;
             if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         } catch (Exception ex) {
             test.setText("Error inesperado al procesar la expresión.");
-            answer.setText("");
+            setAnswerLatex("");
             hasResultShown = false;
             if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         } catch (Throwable ex) {
             test.setText("Fallo crítico del motor: " + ex.getClass().getSimpleName());
-            answer.setText("");
+            setAnswerLatex("");
             hasResultShown = false;
             if (btnViewSolution != null) btnViewSolution.setVisibility(View.GONE);
         }
@@ -1685,7 +1682,6 @@ public class MainActivity extends AppCompatActivity {
                 java.util.List<Token> blocks = jsonToTokens(arr, currentContainer);
                 spliceTokensAtCursor(blocks);
                 updateView();
-                if (hsInput != null) hsInput.post(() -> hsInput.fullScroll(View.FOCUS_RIGHT));
                 return;
             } catch (Exception ignored) {}
         }
@@ -1758,6 +1754,15 @@ public class MainActivity extends AppCompatActivity {
             if (latex != null && !latex.isEmpty()) renderLatex(latex);
         }
     }
+    private void setAnswerLatex(String tex) {
+        if (tex == null) tex = "";
+        if (tex.equals(lastRenderedAnswerLatex)) return;
+        lastRenderedAnswerLatex = tex;
+        if (answer != null) {
+            answer.setText(tex);
+        }
+    }
+
 
     private void setInputBuffer(String s) {
         try {
@@ -1783,12 +1788,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderLatex(String tex) {
-        if (answer != null) answer.setText("");
-        com.judemanutd.katexview.KatexView kv = findViewById(R.id.katex_text);
-        if (kv != null && tex != null) kv.setText(tex);
-        lastExprLatex = tex != null ? tex : "";
+        if (tex == null) tex = "";
+        lastExprLatex = tex;
+        lastRenderedInputLatex = "";
+        if (katexView != null) {
+            String target = wrapLatex(tex);
+            lastRenderedInputLatex = target;
+            katexView.setText(target);
+        }
+        setAnswerLatex("");
+        hasResultShown = false;
     }
-
     private org.json.JSONArray tokensToJson(java.util.List<Token> list) throws org.json.JSONException {
         org.json.JSONArray arr = new org.json.JSONArray();
         if (list != null) for (Token t : list) arr.put(tokenToJson(t));
